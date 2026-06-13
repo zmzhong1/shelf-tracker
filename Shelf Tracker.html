@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shelf Tracker — Seoul Glass</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="hifi/seoul-glass.css">
+<link rel="stylesheet" href="hifi/components.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: var(--sg-sans); min-height: 100vh; color: var(--sg-ink);
+    background:
+      radial-gradient(120% 70% at 8% -10%, #FBEFF2 0%, transparent 44%),
+      radial-gradient(120% 80% at 100% 0%, #EEF1FB 0%, transparent 40%),
+      #ECE7E9;
+    display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 30px 18px 60px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .topbar { width: 100%; max-width: 560px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+  .topbar .brand { display: flex; flex-direction: column; gap: 2px; }
+  .topbar .kick { font-family: var(--sg-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--sg-accent-ink); }
+  .topbar h1 { font-size: 19px; font-weight: 800; letter-spacing: -.02em; margin: 0; }
+  .topbar .controls { display: flex; gap: 10px; align-items: center; }
+  .play-btn { height: 38px; padding: 0 16px; border-radius: 999px; border: 0; cursor: pointer; font-family: var(--sg-sans); font-size: 13px; font-weight: 700; color: #1A1518; background: linear-gradient(118deg, #9DB8FF, #FFB7C9); box-shadow: 0 6px 16px -6px rgba(157,184,255,.8); display: inline-flex; align-items: center; gap: 7px; }
+  .play-btn:active { transform: scale(.97); }
+  .mode-toggle { display: inline-flex; gap: 3px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,.7); box-shadow: inset 0 1px 0 rgba(255,255,255,.9); border: 1px solid rgba(255,255,255,.6); }
+  .mode-toggle button { font-family: var(--sg-sans); font-size: 13px; font-weight: 600; color: rgba(26,21,24,.45); border: 0; background: transparent; padding: 7px 14px; border-radius: 999px; cursor: pointer; }
+  .mode-toggle button.on { color: #1A1518; background: #fff; box-shadow: 0 1px 3px rgba(26,21,24,.12); }
+
+  /* device frame */
+  .device { border-radius: 52px; padding: 12px; background: linear-gradient(160deg, #d9d2d6, #b3aab0); box-shadow: 0 40px 80px -30px rgba(26,21,24,.55), inset 0 0 0 1px rgba(255,255,255,.4); }
+  .app { border-radius: 40px; overflow: hidden; }
+
+  .search > svg { stroke: var(--sg-ink-45); }
+  .hint { font-size: 12.5px; color: var(--sg-ink-45); line-height: 1.5; }
+  @media (max-width: 460px) { .device { transform: scale(.92); transform-origin: top center; } }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <span class="kick">Seoul Glass · prototype</span>
+    <h1>Shelf Tracker</h1>
+  </div>
+  <div class="controls">
+    <button class="play-btn" id="playMoney">▶ Play money path</button>
+    <div class="mode-toggle" id="darkToggle">
+      <button class="on" data-mode="light">Light</button>
+      <button data-mode="dark">Dark</button>
+    </div>
+  </div>
+</div>
+
+<div class="device">
+<div class="app" id="app">
+  <div class="appbar"><span>9:41</span><span class="dots"></span></div>
+
+  <div class="screens">
+
+    <!-- ============ LIST ============ -->
+    <section class="screen active" data-screen="list" data-screen-label="List">
+      <div class="screen__scroll">
+        <div class="screen-head"><h2 class="screen-title">Shelf</h2><span class="screen-sub" id="list-count">201 items</span></div>
+        <div class="search">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+          <input id="list-search" placeholder="Search brand, shade, code…" autocomplete="off">
+          <span class="clearx">✕</span>
+        </div>
+        <div class="chips" id="list-chips">
+          <span class="chip on" data-filter="all">All 201</span>
+          <span class="chip" data-filter="cheek">Cheek 87</span>
+          <span class="chip" data-filter="lip">Lip</span>
+          <span class="chip" data-filter="expiring">Expiring</span>
+        </div>
+        <div class="rows" id="list-rows"></div>
+      </div>
+    </section>
+
+    <!-- ============ ADD ============ -->
+    <section class="screen" data-screen="add" data-screen-label="Add">
+      <div class="screen__scroll">
+        <div class="screen-head"><h2 class="screen-title">Add</h2><span class="screen-sub">&lt; 30 sec</span></div>
+        <div class="field"><label>Brand</label>
+          <input id="add-brand" placeholder="type — autocompletes from your 51 brands" autocomplete="off">
+          <div class="ac" id="add-ac"></div>
+        </div>
+        <div class="field"><label>Product name</label><input id="add-name" placeholder="EN or 中文" autocomplete="off"></div>
+        <div class="field-row">
+          <div class="field mono"><label>Shade code</label><input id="add-code" placeholder="PK03" autocomplete="off"></div>
+          <div class="field"><label>Shade name</label><input id="add-shade" placeholder="Pure Cake" autocomplete="off"></div>
+        </div>
+        <div class="catrow"><span class="lab">Area</span><span class="catpill on">Cheek</span><span class="catpill">Lip</span><span class="catpill">Eye</span><span class="catpill">Base</span></div>
+        <div class="field-row">
+          <div class="field"><label>Use-by 까지</label><input placeholder="—" autocomplete="off"></div>
+          <div class="field"><label>Mfg 제조</label><input placeholder="—" autocomplete="off"></div>
+          <div class="field"><label>Opened</label><input placeholder="—" autocomplete="off"></div>
+        </div>
+        <p class="hint" style="padding:0 4px">Dates optional — the badge falls back to <b style="color:var(--sg-ink)">mfg + 36 mo “est.”</b> Fields mirror your Sheet columns; nothing invented.</p>
+      </div>
+      <div class="dock"><button class="btn primary full" id="add-save">Save</button></div>
+    </section>
+
+    <!-- ============ SCAN ============ -->
+    <section class="screen" data-screen="scan" data-screen-label="Scan">
+      <div class="screen__scroll" style="padding-bottom:120px">
+        <div class="screen-head"><h2 class="screen-title">Scan</h2><span class="screen-sub" id="scan-miss-toggle" style="cursor:pointer">simulate miss ⤵</span></div>
+        <div class="viewfinder" id="viewfinder">
+          <div class="vf-blur"></div>
+          <div class="vf-guide"><span class="tl"></span><span class="tr"></span><span class="bl"></span><span class="br"></span></div>
+          <div class="vf-hint">Line up the barcode</div>
+        </div>
+        <div id="scan-result-wrap"></div>
+      </div>
+      <div class="dock" id="scan-dock"><div class="shutter" id="shutter"></div></div>
+    </section>
+
+    <!-- ============ IMPORT ============ -->
+    <section class="screen" data-screen="import" data-screen-label="Import">
+      <div class="screen__scroll">
+        <div class="screen-head"><h2 class="screen-title">Import</h2><span class="screen-sub">paste from Scanner</span></div>
+        <div class="paste" id="paste" contenteditable="true" data-ph="Paste rows copied from Shelf Scanner…"></div>
+        <button class="btn ghost full" id="import-fill" style="height:42px;font-size:13px">⌘V&nbsp;&nbsp;Paste sample from Scanner</button>
+        <div class="rows" id="import-preview"></div>
+      </div>
+      <div class="dock" id="import-actions" style="display:none">
+        <div class="btn-row">
+          <button class="btn ghost" style="flex:.7" onclick="var p=document.getElementById('paste');p.textContent='';document.getElementById('import-preview').innerHTML='';document.getElementById('import-actions').style.display='none'">Clear</button>
+          <button class="btn primary" style="flex:1.7" id="import-go">Import</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CATALOG ============ -->
+    <section class="screen" data-screen="cat" data-screen-label="Catalog">
+      <div class="screen__scroll">
+        <div class="screen-head"><h2 class="screen-title">Catalog</h2><span class="screen-sub">201 · 51 brands</span></div>
+        <div class="seg" id="cat-seg">
+          <button class="on" data-view="grid">Grid</button>
+          <button data-view="insights">Insights</button>
+          <button data-view="haul">Korea Haul</button>
+        </div>
+
+        <!-- grid -->
+        <div class="cat-view" data-view="grid" style="display:flex;flex-direction:column;gap:14px">
+          <div class="chips"><span class="chip on">All areas</span><span class="chip">Cheek 87</span><span class="chip">Lip</span><span class="chip">Expiring</span></div>
+          <div id="cat-grid-wrap" style="display:flex;flex-direction:column;gap:10px"></div>
+        </div>
+
+        <!-- insights -->
+        <div class="cat-view" data-view="insights" style="display:none;flex-direction:column;gap:14px">
+          <div class="stat-row">
+            <div class="stat expired"><span class="num">6</span><span class="lbl">expired</span></div>
+            <div class="stat soon"><span class="num">11</span><span class="lbl">≤90 days</span></div>
+            <div class="stat"><span class="num">201</span><span class="lbl">on shelf</span></div>
+          </div>
+          <div class="panel">
+            <h4>Expiring next</h4>
+            <div class="row" style="cursor:default">
+              <span class="dot" style="--s1:#EFB7AE;--sdeep:#C56F62"></span>
+              <div class="row__main"><div class="row__l1"><b>Rom&amp;nd</b><span class="row__name">Better Than Cheek</span></div><div class="row__l2"><span class="row__code">BC01</span><span class="row__zh">Dusty Ribbon</span></div></div>
+              <span class="pill-badge expired">3/26</span>
+            </div>
+            <div class="row" style="cursor:default">
+              <span class="dot" style="--s1:#E9BCC4;--sdeep:#B56C7E"></span>
+              <div class="row__main"><div class="row__l1"><b>BBIA</b><span class="row__name">Downy Cheek</span></div><div class="row__l2"><span class="row__code">C088-18</span><span class="row__zh">Rosewood Mute</span></div></div>
+              <span class="pill-badge soon">82d</span>
+            </div>
+          </div>
+          <div class="panel">
+            <h4>Collection gaps</h4>
+            <div class="spectrum">
+              <i style="background:#F8CDD4"></i><i style="background:#E8C7E0"></i><i style="background:#EBBDB6"></i><i style="background:#E9BCC4"></i><i style="background:#EFB7AE"></i><i class="gap"></i><i style="background:#E7A893"></i><i class="gap"></i>
+            </div>
+            <p class="hint">87 blush, heavy on rose &amp; mauve — <b style="color:var(--sg-ink)">coral &amp; brick are thin</b>. The two hollow slots are gaps worth filling, not re-buying.</p>
+          </div>
+        </div>
+
+        <!-- haul -->
+        <div class="cat-view" data-view="haul" style="display:none;flex-direction:column;gap:10px">
+          <p class="hint" style="padding:0 2px">Check items off in-store — the subtotal updates live.</p>
+          <div id="haul-list" style="display:flex;flex-direction:column;gap:10px">
+            <div class="haul-item done" data-price="14000"><div class="check"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div><div class="hi-main"><div class="hi-name">FWEE Pudding Pot — PK05 Mauve</div><div class="hi-sub">refill the one expiring soon</div></div><span class="hi-price">₩14,000</span></div>
+            <div class="haul-item done" data-price="18500"><div class="check"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div><div class="hi-main"><div class="hi-name">Dasique mood cheek refill #09</div><div class="hi-sub">running low</div></div><span class="hi-price">₩18,500</span></div>
+            <div class="haul-item" data-price="32000"><div class="check"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div><div class="hi-main"><div class="hi-name">Hince radiance balm — LIGHT 02</div><div class="hi-sub">new, fills a glow gap</div></div><span class="hi-price">₩32,000</span></div>
+            <div class="haul-item" data-price="16000"><div class="check"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div><div class="hi-main"><div class="hi-name">Rom&amp;nd new cheek</div><div class="hi-sub" style="color:var(--sg-expired)">⚠ check shade vs the 5 you own</div></div><span class="hi-price">₩16,000</span></div>
+          </div>
+          <div class="subtotal" style="position:sticky;bottom:96px;margin-top:6px">
+            <span class="sl">checked <b id="haul-checked">2 of 4</b></span>
+            <span class="sv"><span class="spent" id="haul-spent">₩32,500</span> · <span id="haul-left">₩48,000</span> left</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ DETAIL ============ -->
+    <section class="screen" data-screen="detail" data-screen-label="Detail">
+      <div class="screen__scroll" id="detail-body"></div>
+    </section>
+
+  </div>
+
+  <!-- chrome + overlays -->
+  <div class="tabwrap"><div class="tabbar" id="tabbar"></div></div>
+  <div class="home-ind"></div>
+
+  <div id="toast" class="toast"></div>
+  <div id="coach" class="coach"></div>
+  <div id="scrim" class="scrim"></div>
+  <div id="sheet" class="sheet"><div class="sheet__card" id="sheet-body"></div></div>
+</div>
+</div>
+
+<p class="hint" style="max-width:393px;text-align:center">Tap the tab bar to move between surfaces · long-press a List row for Opened / Retire · the raised key is Scan. <b style="color:var(--sg-ink)">▶ Play money path</b> runs the 5-second in-store job end to end.</p>
+
+<script src="hifi/app.js"></script>
+<script>
+  // cosmetic toggles for static pill groups (area, catalog chips)
+  document.addEventListener("click", function (e) {
+    var cp = e.target.closest(".catpill");
+    if (cp) { cp.parentElement.querySelectorAll(".catpill").forEach(function (x) { x.classList.remove("on"); }); cp.classList.add("on"); return; }
+    var chip = e.target.closest('.cat-view[data-view="grid"] .chips .chip, .cat-view[data-view="insights"] .chips .chip');
+    if (chip) { chip.parentElement.querySelectorAll(".chip").forEach(function (x) { x.classList.remove("on"); }); chip.classList.add("on"); }
+  });
+</script>
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#F7F4F5"/>
+    <rect x="30" y="20" width="40" height="53" rx="8" fill="url(#g)"/>
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F8CDD4"/><stop offset="1" stop-color="#C9788C"/></linearGradient></defs>
+    <text x="50" y="60" font-family="monospace" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">PK03</text>
+  </svg>
+</template>
+</body>
+</html>

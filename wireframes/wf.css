@@ -1,0 +1,115 @@
+/* Shelf Tracker — wireframe vocabulary (sketchy, b&w + one accent) */
+@import url('https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Caveat:wght@600;700&display=swap');
+
+:root {
+  --wf-ink: #38342f;
+  --wf-line: #57524b;
+  --wf-faint: #8c857c;
+  --wf-fill: #f1efec;
+  --wf-fill2: #e4e1dc;
+  --wf-paper: #ffffff;
+  --wf-accent: #FF4D62;
+  --wf-exp: #b8323e;
+  --wf-soon: #a85f12;
+  --wf-fresh: #3e7d5c;
+}
+
+.wf { font-family: 'Patrick Hand', cursive; color: var(--wf-ink); font-size: 15px; line-height: 1.3; }
+.wf * { box-sizing: border-box; }
+
+/* hand-drawn border shapes */
+.sk  { border: 1.6px solid var(--wf-line); border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; }
+.sk2 { border: 1.6px solid var(--wf-line); border-radius: 15px 225px 15px 255px / 225px 15px 255px 15px; }
+.sk3 { border: 1.6px solid var(--wf-line); border-radius: 125px 10px 110px 10px / 10px 110px 10px 125px; }
+.sk-dash { border-style: dashed; }
+.sk-faint { border-color: var(--wf-faint); }
+
+.wf-fill { background: var(--wf-fill); }
+.wf-hatch {
+  background: repeating-linear-gradient(45deg, transparent, transparent 7px, #d9d5cf 7px, #d9d5cf 8.5px);
+  background-color: var(--wf-fill);
+}
+
+.wf-mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; letter-spacing: .02em; }
+.wf-mono-big { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: 700; }
+
+.wf-h { font-family: 'Caveat', cursive; font-weight: 700; font-size: 22px; }
+.wf-dim { color: var(--wf-faint); }
+.wf-small { font-size: 12.5px; }
+
+.wf-note {
+  font-family: 'Caveat', cursive; font-weight: 600; font-size: 16.5px;
+  color: var(--wf-accent); line-height: 1.15;
+}
+
+.wf-pill {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 3px 12px; border: 1.5px solid var(--wf-line); border-radius: 99px;
+  background: var(--wf-paper); white-space: nowrap;
+}
+.wf-pill.is-active { background: var(--wf-ink); color: #fff; border-color: var(--wf-ink); }
+
+.wf-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 1px 9px; border-radius: 99px; border: 1.5px solid currentColor;
+  font-size: 12.5px; white-space: nowrap; background: #fff;
+}
+.wf-badge.exp   { color: var(--wf-exp); }
+.wf-badge.soon  { color: var(--wf-soon); }
+.wf-badge.fresh { color: var(--wf-fresh); }
+.wf-badge.ret   { color: var(--wf-faint); }
+
+.wf-btn {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 44px; padding: 0 18px; border: 1.6px solid var(--wf-line);
+  border-radius: 99px; background: var(--wf-paper); font-size: 16px;
+}
+.wf-btn.primary { background: var(--wf-ink); color: #fff; border-color: var(--wf-ink); }
+.wf-btn.ghost { border-style: dashed; color: var(--wf-faint); }
+
+.wf-input {
+  display: flex; align-items: center; min-height: 44px; padding: 0 14px;
+  border: 1.6px solid var(--wf-line); border-radius: 14px; background: var(--wf-paper);
+  color: var(--wf-faint);
+}
+.wf-input.filled { color: var(--wf-ink); }
+.wf-input.focus { border-color: var(--wf-accent); box-shadow: 0 0 0 2px rgba(255,77,98,.18); }
+
+.wf-label { font-size: 12.5px; color: var(--wf-faint); margin: 0 0 3px 4px; }
+
+/* phone chrome */
+.wf-statusbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 18px 4px; font-size: 12.5px; color: var(--wf-faint);
+}
+.wf-homebar { width: 120px; height: 4px; border-radius: 9px; background: var(--wf-fill2); margin: 6px auto 8px; }
+
+/* keyboard placeholder */
+.wf-kbd {
+  background: var(--wf-fill);
+  border-top: 1.6px dashed var(--wf-faint);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--wf-faint); font-size: 13px; letter-spacing: .15em;
+}
+
+/* smear blob */
+.wf-smear {
+  background: radial-gradient(80% 90% at 32% 28%, #cdc7c1 0%, #b3aca5 55%, #978f88 100%);
+  border-radius: 58% 42% 55% 45% / 48% 60% 40% 52%;
+}
+.wf-smear.pink {
+  background: radial-gradient(80% 90% at 32% 28%, #f3c9cf 0%, #e3a3ad 55%, #cd8090 100%);
+}
+
+table.wf-table { border-collapse: collapse; width: 100%; }
+table.wf-table th, table.wf-table td {
+  border: 1.4px solid var(--wf-line); padding: 5px 8px; text-align: left; font-size: 13.5px;
+  background: #fff;
+}
+table.wf-table th { background: var(--wf-fill); font-size: 12.5px; }
+
+.wf-x {
+  background:
+    linear-gradient(to top right, transparent calc(50% - .8px), var(--wf-faint) 50%, transparent calc(50% + .8px)),
+    linear-gradient(to bottom right, transparent calc(50% - .8px), var(--wf-faint) 50%, transparent calc(50% + .8px));
+}

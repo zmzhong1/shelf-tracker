@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shelf Scanner — Seoul Glass</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="hifi/seoul-glass.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: var(--sg-sans); color: var(--sg-ink); min-height: 100vh; padding: 34px 20px 70px;
+    -webkit-font-smoothing: antialiased;
+    background:
+      radial-gradient(110% 60% at 10% -10%, #FBEFF2 0%, transparent 42%),
+      radial-gradient(110% 70% at 100% 0%, #EEF1FB 0%, transparent 40%),
+      #ECE7E9;
+    display: flex; justify-content: center;
+  }
+  .panel {
+    width: 100%; max-width: 760px; border-radius: 26px; overflow: hidden;
+    background: var(--sg-pearl);
+    box-shadow: 0 40px 80px -34px rgba(26,21,24,.5), inset 0 0 0 1px var(--sg-hairline);
+    transition: background .35s var(--sg-ease), color .35s var(--sg-ease);
+  }
+  /* window chrome */
+  .chrome { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--sg-hairline);
+    background: var(--sg-glass); backdrop-filter: blur(var(--sg-glass-blur)); -webkit-backdrop-filter: blur(var(--sg-glass-blur)); }
+  .lights { display: flex; gap: 7px; }
+  .lights i { width: 12px; height: 12px; border-radius: 50%; display: block; }
+  .lights i:nth-child(1) { background: #FF5F57; } .lights i:nth-child(2) { background: #FEBC2E; } .lights i:nth-child(3) { background: #28C840; }
+  .chrome .url { flex: 1; text-align: center; font-family: var(--sg-mono); font-size: 12.5px; color: var(--sg-ink-45); }
+  .mode-toggle { display: inline-flex; gap: 3px; padding: 3px; border-radius: 999px; background: var(--sg-glass-strong); border: var(--sg-glass-edge); }
+  .mode-toggle button { font-family: var(--sg-sans); font-size: 12px; font-weight: 600; color: var(--sg-ink-45); border: 0; background: transparent; padding: 5px 12px; border-radius: 999px; cursor: pointer; }
+  .mode-toggle button.on { color: var(--sg-ink); background: var(--sg-pearl); box-shadow: 0 1px 3px rgba(26,21,24,.12); }
+
+  .body { padding: 24px 26px 28px; display: flex; flex-direction: column; gap: 20px; }
+  .head h1 { font-size: 25px; font-weight: 800; letter-spacing: -.02em; margin: 0 0 5px; }
+  .head p { font-size: 13.5px; color: var(--sg-ink-70); margin: 0; line-height: 1.5; }
+  .head .stamps { font-family: var(--sg-mono); color: var(--sg-accent-ink); }
+
+  .section-label { font-family: var(--sg-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--sg-ink-45); margin-bottom: -8px; }
+
+  /* photo queue */
+  .queue { display: flex; gap: 12px; flex-wrap: wrap; }
+  .photo { width: 104px; display: flex; flex-direction: column; gap: 6px; }
+  .photo .frame { position: relative; width: 104px; height: 104px; border-radius: 14px; overflow: hidden; cursor: pointer; box-shadow: var(--sg-shadow-card); }
+  .photo .frame .img { position: absolute; inset: 0; background:
+      radial-gradient(70% 50% at 35% 30%, rgba(255,255,255,.5), transparent 60%),
+      linear-gradient(150deg, var(--p1, #d9cdd0), var(--p2, #b3a3a8)); }
+  .photo .frame .bar { position: absolute; left: 16px; right: 16px; bottom: 22px; height: 26px; border-radius: 4px;
+    background: repeating-linear-gradient(90deg, rgba(20,16,18,.85) 0 2px, transparent 2px 4px, rgba(20,16,18,.85) 4px 5px, transparent 5px 8px); opacity: .85; }
+  .photo .frame .state { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+    background: rgba(255,255,255,.85); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 2px 6px rgba(0,0,0,.18); }
+  .photo .frame .state svg { width: 15px; height: 15px; fill: none; stroke-width: 2.4; }
+  .photo.read .state { color: var(--sg-fresh); } .photo.read .state svg { stroke: var(--sg-fresh); }
+  .photo.fail .state { color: var(--sg-expired); } .photo.fail .state svg { stroke: var(--sg-expired); }
+  .photo.fail .frame { outline: 2px solid var(--sg-expired); outline-offset: -2px; }
+  .photo.reading .frame .img { filter: saturate(.7) brightness(.92); }
+  .spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--sg-ink-12); border-top-color: var(--sg-accent); animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .photo .cap { font-size: 11.5px; font-weight: 600; text-align: center; }
+  .photo.read .cap { color: var(--sg-fresh); } .photo.fail .cap { color: var(--sg-expired); } .photo.reading .cap { color: var(--sg-ink-45); }
+  .photo .cap .sub { display: block; font-weight: 400; color: var(--sg-ink-45); font-size: 10.5px; }
+  .photo.add .frame { border: 1.6px dashed var(--sg-ink-12); background: transparent; box-shadow: none; display: grid; place-items: center; color: var(--sg-ink-45); font-size: 30px; font-weight: 300; }
+  .photo.add .frame .img, .photo.add .frame .bar { display: none; }
+
+  /* review banner */
+  .review-note { display: flex; align-items: center; gap: 11px; padding: 12px 15px; border-radius: 13px;
+    background: var(--sg-soon-bg); color: var(--sg-soon); font-size: 13.5px; font-weight: 600; }
+  .review-note svg { width: 19px; height: 19px; stroke: currentColor; fill: none; stroke-width: 2; flex: none; }
+  .review-note b { font-weight: 800; }
+
+  /* results table */
+  .tablecard { border-radius: 16px; overflow: hidden; box-shadow: var(--sg-glass-hi); border: var(--sg-glass-edge); background: var(--sg-glass); }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  thead th { text-align: left; padding: 11px 13px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--sg-ink-45); border-bottom: 1px solid var(--sg-hairline); white-space: nowrap; }
+  thead th .ko { font-family: var(--sg-mono); text-transform: none; letter-spacing: 0; color: var(--sg-accent-ink); }
+  tbody td { padding: 4px 7px; border-bottom: 1px solid var(--sg-hairline); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: 0; }
+  .cell { min-height: 34px; padding: 6px 8px; border-radius: 8px; outline: none; font-family: var(--sg-sans); }
+  .cell.mono { font-family: var(--sg-mono); font-weight: 600; letter-spacing: .02em; }
+  .cell:focus { box-shadow: inset 0 0 0 2px rgba(255,77,98,.35); background: var(--sg-glass-strong); }
+  td.lowconf .cell { background: var(--sg-expired-bg); color: var(--sg-expired); position: relative; }
+  td.lowconf .cell::after { content: " ?"; font-weight: 800; }
+  td.lowconf .cell:focus::after { content: ""; }
+  td.lowconf.fixed .cell { background: transparent; color: var(--sg-ink); }
+  td.lowconf.fixed .cell::after { content: ""; }
+  .chk { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--sg-ink-12); display: grid; place-items: center; cursor: pointer; margin: 0 auto; }
+  .chk svg { width: 13px; height: 13px; stroke: #fff; fill: none; stroke-width: 2.6; opacity: 0; }
+  .chk.on { background: var(--sg-fresh); border-color: var(--sg-fresh); } .chk.on svg { opacity: 1; }
+  .thumb { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(150deg, var(--p1,#d9cdd0), var(--p2,#b3a3a8)); }
+  .conf { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; }
+  .conf.hi { color: var(--sg-fresh); } .conf.lo { color: var(--sg-expired); }
+  .conf::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  .foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .foot .hint { font-size: 12.5px; color: var(--sg-ink-45); line-height: 1.5; max-width: 46ch; }
+  .foot .hint code { font-family: var(--sg-mono); font-size: 11.5px; color: var(--sg-accent-ink); }
+  .actions { display: flex; gap: 10px; flex: none; }
+  .btn { height: 46px; padding: 0 20px; border-radius: 999px; font-family: var(--sg-sans); font-size: 14.5px; font-weight: 700; cursor: pointer; border: 0; display: inline-flex; align-items: center; gap: 8px; transition: transform .15s var(--sg-spring); }
+  .btn:active { transform: scale(.97); }
+  .btn.ghost { background: transparent; color: var(--sg-ink-70); border: 1.5px solid var(--sg-ink-12); }
+  .btn.primary { background: var(--sg-ink); color: var(--sg-pearl); }
+  .btn svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+  .toast { position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%) translateY(16px); z-index: 90;
+    display: flex; align-items: center; gap: 10px; padding: 13px 18px; border-radius: 14px; background: var(--sg-ink); color: var(--sg-pearl);
+    box-shadow: var(--sg-shadow-float); opacity: 0; visibility: hidden; transition: opacity .3s var(--sg-spring), transform .3s var(--sg-spring), visibility .3s; font-size: 14px; font-weight: 600; }
+  .toast.show { opacity: 1; visibility: visible; transform: translateX(-50%); }
+  .toast .tc { width: 22px; height: 22px; border-radius: 50%; background: var(--sg-fresh); display: grid; place-items: center; }
+  .toast .tc svg { width: 13px; height: 13px; stroke: #fff; fill: none; stroke-width: 2.6; }
+</style>
+</head>
+<body>
+<div class="panel" id="panel">
+  <div class="chrome">
+    <div class="lights"><i></i><i></i><i></i></div>
+    <div class="url">claude.ai  ·  Shelf Scanner</div>
+    <div class="mode-toggle" id="darkToggle"><button class="on" data-mode="light">Light</button><button data-mode="dark">Dark</button></div>
+  </div>
+
+  <div class="body">
+    <div class="head">
+      <h1>Shelf Scanner</h1>
+      <p>Photograph your products — AI reads brand, shade code, and the <span class="stamps">까지</span> use-by / <span class="stamps">제조</span> mfg stamps. Embossed stamps are easy to misread, so every reading is yours to confirm before it leaves this screen.</p>
+    </div>
+
+    <div class="section-label">Photo queue</div>
+    <div class="queue" id="queue">
+      <div class="photo read" style="--p1:#F3C9D0;--p2:#C9788C"><div class="frame"><div class="img"></div><div class="bar"></div><div class="state"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div></div><div class="cap">read<span class="sub">FWEE · PK03</span></div></div>
+      <div class="photo read" style="--p1:#E2A8AE;--p2:#9E5867"><div class="frame"><div class="img"></div><div class="bar"></div><div class="state"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div></div><div class="cap">read<span class="sub">Dasique · #05</span></div></div>
+      <div class="photo reading" id="p-reading" style="--p1:#E4C9DF;--p2:#9E74A0"><div class="frame"><div class="img"></div><div class="bar"></div><div class="state"><span class="spin"></span></div></div><div class="cap">reading…<span class="sub">tap to finish</span></div></div>
+      <div class="photo fail" id="p-fail" style="--p1:#EFC3B6;--p2:#C26C58"><div class="frame"><div class="img"></div><div class="bar"></div><div class="state"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></div></div><div class="cap">retake<span class="sub">blurry stamp</span></div></div>
+      <div class="photo add" id="p-add"><div class="frame">+</div><div class="cap" style="color:var(--sg-ink-45)">add photo</div></div>
+    </div>
+
+    <div class="review-note">
+      <svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <span>Review before trusting — <b>tinted cells</b> are low-confidence guesses. Tap any cell to fix it.</span>
+    </div>
+
+    <div class="section-label">Results</div>
+    <div class="tablecard">
+      <table id="results">
+        <thead>
+          <tr>
+            <th style="width:38px"></th><th style="width:46px">Photo</th><th>Brand</th><th>Product</th><th>Shade</th>
+            <th>Use-by <span class="ko">까지</span></th><th>Mfg <span class="ko">제조</span></th><th style="width:96px">Confidence</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><div class="chk on" data-chk><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div></td>
+            <td><div class="thumb" style="--p1:#F3C9D0;--p2:#C9788C"></div></td>
+            <td><div class="cell" contenteditable="true">FWEE</div></td>
+            <td><div class="cell" contenteditable="true">Blurry Pudding Pot</div></td>
+            <td><div class="cell mono" contenteditable="true">PK03</div></td>
+            <td><div class="cell mono" contenteditable="true">2027.11</div></td>
+            <td><div class="cell mono" contenteditable="true">—</div></td>
+            <td><span class="conf hi">high</span></td>
+          </tr>
+          <tr>
+            <td><div class="chk on" data-chk><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div></td>
+            <td><div class="thumb" style="--p1:#E2A8AE;--p2:#9E5867"></div></td>
+            <td><div class="cell" contenteditable="true">Dasique</div></td>
+            <td><div class="cell" contenteditable="true">Juicy Dewy Tint</div></td>
+            <td><div class="cell mono" contenteditable="true">#05</div></td>
+            <td class="lowconf"><div class="cell mono" contenteditable="true">2026.08</div></td>
+            <td><div class="cell mono" contenteditable="true">—</div></td>
+            <td><span class="conf lo">low · date</span></td>
+          </tr>
+          <tr>
+            <td><div class="chk on" data-chk><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div></td>
+            <td><div class="thumb" style="--p1:#E4C9DF;--p2:#9E74A0"></div></td>
+            <td class="lowconf"><div class="cell" contenteditable="true">Hince</div></td>
+            <td><div class="cell" contenteditable="true">提亮腮紅澎澎餅</div></td>
+            <td class="lowconf"><div class="cell mono" contenteditable="true">0l</div></td>
+            <td><div class="cell mono" contenteditable="true">—</div></td>
+            <td><div class="cell mono" contenteditable="true">2025.12</div></td>
+            <td><span class="conf lo">low · 0↔O</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="foot">
+      <div class="hint">Copies in the exact column order Tracker’s <b>Import</b> tab expects: <code>brand ⇥ product ⇥ shade ⇥ 까지 ⇥ 제조</code>. Unchecked rows are skipped.</div>
+      <div class="actions">
+        <button class="btn ghost" id="reread"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Re-read photos</button>
+        <button class="btn primary" id="copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span id="copy-label">Copy 3 rows → Import</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><div class="tc"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div><span id="toast-text">Copied</span></div>
+
+<script>
+  const $ = s => document.querySelector(s);
+  const $$ = s => Array.from(document.querySelectorAll(s));
+
+  // dark
+  $("#darkToggle").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    $("#panel").classList.toggle("sg-dark", b.dataset.mode === "dark");
+    $$("#darkToggle button").forEach(x => x.classList.toggle("on", x === b));
+  });
+
+  // fixing a low-confidence cell clears its warning
+  $$("td.lowconf .cell").forEach(c => {
+    c.addEventListener("input", () => c.closest("td").classList.add("fixed"));
+  });
+
+  // checkboxes
+  $$("[data-chk]").forEach(chk => chk.addEventListener("click", () => { chk.classList.toggle("on"); updateCopyLabel(); }));
+  function checkedRows() { return $$("#results tbody tr").filter(tr => tr.querySelector(".chk").classList.contains("on")); }
+  function updateCopyLabel() {
+    const n = checkedRows().length;
+    $("#copy-label").textContent = `Copy ${n} row${n === 1 ? "" : "s"} → Import`;
+  }
+
+  // queue interactions
+  $("#p-reading").addEventListener("click", function () {
+    this.classList.remove("reading"); this.classList.add("read");
+    this.querySelector(".state").innerHTML = '<svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>';
+    this.querySelector(".cap").innerHTML = 'read<span class="sub">Rom&amp;nd · JJ04</span>';
+    toast("Reading finished — added a row");
+  });
+  $("#p-fail").addEventListener("click", function () {
+    this.classList.remove("fail"); this.classList.add("reading");
+    this.querySelector(".state").innerHTML = '<span class="spin"></span>';
+    this.querySelector(".cap").innerHTML = 'reading…<span class="sub">re-reading</span>';
+    setTimeout(() => {
+      this.classList.remove("reading"); this.classList.add("read");
+      this.querySelector(".state").innerHTML = '<svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>';
+      this.querySelector(".cap").innerHTML = 'read<span class="sub">BBIA · R12</span>';
+    }, 1400);
+  });
+  $("#p-add").addEventListener("click", () => toast("Drop or shoot another photo"));
+  $("#reread").addEventListener("click", () => toast("Re-reading all photos…"));
+
+  // copy to TSV
+  $("#copy").addEventListener("click", () => {
+    const rows = checkedRows().map(tr => {
+      const c = tr.querySelectorAll(".cell");
+      return [c[0], c[1], c[2], c[3], c[4]].map(x => x.textContent.trim()).join("\t");
+    });
+    const tsv = rows.join("\n");
+    if (navigator.clipboard) navigator.clipboard.writeText(tsv).catch(() => {});
+    toast(`Copied ${rows.length} rows — paste into Import`);
+  });
+
+  let tt;
+  function toast(msg) {
+    $("#toast-text").textContent = msg; $("#toast").classList.add("show");
+    clearTimeout(tt); tt = setTimeout(() => $("#toast").classList.remove("show"), 2400);
+  }
+  updateCopyLabel();
+</script>
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#F7F4F5"/>
+    <rect x="22" y="26" width="56" height="40" rx="6" fill="#fff" stroke="#C9788C" stroke-width="2"/>
+    <rect x="30" y="40" width="40" height="8" rx="2" fill="#C9788C"/>
+    <path d="M34 56l5 5 9-10" stroke="#3E7D5C" stroke-width="3" fill="none" stroke-linecap="round"/>
+  </svg>
+</template>
+</body>
+</html>

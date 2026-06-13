@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shelf Tracker — Component Inventory, Tokens & Motion Spec</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="hifi/seoul-glass.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: var(--sg-sans); color: var(--sg-ink); background: #ECE7E9;
+    -webkit-font-smoothing: antialiased; line-height: 1.5;
+    padding: 40px 20px 80px;
+  }
+  .doc { max-width: 860px; margin: 0 auto; background: var(--sg-pearl); border-radius: 22px; padding: 60px 64px 72px; box-shadow: 0 30px 70px -36px rgba(26,21,24,.4), inset 0 0 0 1px var(--sg-hairline); }
+
+  .cover { border-bottom: 2px solid var(--sg-ink); padding-bottom: 26px; margin-bottom: 38px; }
+  .kicker { font-family: var(--sg-mono); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--sg-accent-ink); margin: 0 0 14px; }
+  h1 { font-size: 40px; font-weight: 800; letter-spacing: -.03em; line-height: 1.02; margin: 0 0 14px; }
+  .sub { font-size: 16px; color: var(--sg-ink-70); max-width: 60ch; margin: 0; }
+  .meta { display: flex; gap: 26px; margin-top: 22px; flex-wrap: wrap; }
+  .meta div { font-size: 13px; }
+  .meta .l { font-family: var(--sg-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--sg-ink-45); display: block; margin-bottom: 3px; }
+
+  h2 { font-size: 13px; font-family: var(--sg-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--sg-accent-ink); margin: 52px 0 4px; }
+  h2 .n { color: var(--sg-ink-45); margin-right: 10px; }
+  .h2rule { height: 1px; background: var(--sg-hairline); margin: 12px 0 24px; }
+  h3 { font-size: 19px; font-weight: 800; letter-spacing: -.01em; margin: 30px 0 10px; }
+  p.lead { font-size: 14.5px; color: var(--sg-ink-70); margin: 0 0 18px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13px; margin: 6px 0 10px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--sg-hairline); vertical-align: top; }
+  th { font-family: var(--sg-mono); font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--sg-ink-45); font-weight: 600; }
+  td code, p code, li code { font-family: var(--sg-mono); font-size: 12px; color: var(--sg-accent-ink); background: rgba(255,77,98,.08); padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
+  td b { font-weight: 700; }
+  .mono { font-family: var(--sg-mono); }
+
+  /* token swatch grid */
+  .swatches { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 8px 0 14px; }
+  .sw { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: #fff; box-shadow: inset 0 0 0 1px var(--sg-hairline); }
+  .chip { width: 40px; height: 40px; border-radius: 9px; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
+  .sw .nm { font-family: var(--sg-mono); font-size: 12px; font-weight: 600; }
+  .sw .hx { font-size: 11.5px; color: var(--sg-ink-45); }
+
+  ul.spec { list-style: none; padding: 0; margin: 8px 0; display: flex; flex-direction: column; gap: 0; }
+  ul.spec li { display: grid; grid-template-columns: 168px 1fr; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--sg-hairline); align-items: start; }
+  ul.spec li .anim { font-weight: 800; font-size: 14px; }
+  ul.spec li .anim .css { display: block; font-family: var(--sg-mono); font-size: 11px; color: var(--sg-ink-45); font-weight: 400; margin-top: 3px; }
+  ul.spec li .desc { font-size: 13.5px; color: var(--sg-ink-70); }
+  ul.spec li .desc .rm { display: block; margin-top: 5px; font-size: 12.5px; }
+  ul.spec li .desc .rm b { color: var(--sg-fresh); font-family: var(--sg-mono); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+
+  .callout { border-radius: 14px; padding: 16px 18px; background: var(--sg-soon-bg); color: var(--sg-soon); font-size: 13.5px; line-height: 1.5; margin: 18px 0; }
+  .callout b { font-weight: 800; }
+  .callout.fresh { background: var(--sg-fresh-bg); color: var(--sg-fresh); }
+
+  .pill { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 10px; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
+  .pill.f { color: var(--sg-fresh); background: var(--sg-fresh-bg); } .pill.s { color: var(--sg-soon); background: var(--sg-soon-bg); } .pill.e { color: var(--sg-expired); background: var(--sg-expired-bg); }
+
+  .foot { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--sg-hairline); font-size: 12px; color: var(--sg-ink-45); }
+
+  @media print { body { background: #fff; padding: 0; } .doc { box-shadow: none; border-radius: 0; max-width: none; padding: 28px 34px; } h2 { break-after: avoid; } ul.spec li, .sw, tr { break-inside: avoid; } }
+  @media (max-width: 620px) { .doc { padding: 36px 24px; } ul.spec li { grid-template-columns: 1fr; gap: 4px; } .swatches { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <div class="cover">
+    <p class="kicker">Seoul Glass · Deliverable E</p>
+    <h1>Component inventory,<br>tokens &amp; motion spec</h1>
+    <p class="sub">The build contract for Shelf Tracker. Every component, every CSS variable, and every micro-animation with its reduced-motion behavior — enough to recreate the prototype faithfully in a single no-build HTML file.</p>
+    <div class="meta">
+      <div><span class="l">Target</span> One HTML file · Google Apps Script · CSS-only animation · CDN fonts</div>
+      <div><span class="l">Fidelity</span> High — colours, type, spacing final</div>
+      <div><span class="l">Source files</span> <span class="mono">hifi/seoul-glass.css · hifi/components.css · hifi/app.js</span></div>
+    </div>
+  </div>
+
+  <!-- ============ 1 · COMPONENT INVENTORY ============ -->
+  <h2><span class="n">01</span> Component inventory</h2>
+  <div class="h2rule"></div>
+  <p class="lead">Eighteen components carry the whole product. Class names match <code>components.css</code>.</p>
+
+  <h3>Signature trio</h3>
+  <table>
+    <thead><tr><th>Component</th><th>Class</th><th>Role &amp; states</th></tr></thead>
+    <tbody>
+      <tr><td><b>Swatch card (C)</b></td><td><code>.pc</code></td><td>Photocard 3:4. Full-bleed shade smear + bottom scrim + huge mono code. Variants: <code>.pc--active</code> (iridescent rim + gloss sweep), <code>.pc--retired</code> (desaturated .62). Used in Catalog grid, detail hero.</td></tr>
+      <tr><td><b>List row (A)</b></td><td><code>.row</code></td><td>Text-led. 30px dot swatch + brand + ellipsizing name + mono code (never truncates) + status badge. States: default, <code>.retired</code> (.48 opacity), <code>.revealed</code> (long-press → Opened/Retire actions), <code>.dupe</code> (import flag).</td></tr>
+      <tr><td><b>Tab bar (B)</b></td><td><code>.tabbar</code> / <code>.tab</code></td><td>Floating glass pill, 5 slots, Scan raised (<code>.tab--scan</code>, iridescent). Active tab inked with accent dot (<code>.tdot</code>).</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Badges &amp; chips</h3>
+  <table>
+    <thead><tr><th>Component</th><th>Class</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td><b>Status pill</b></td><td><code>.pill-badge</code></td><td>On surfaces. <span class="pill f">fresh</span> <span class="pill s">soon</span> <span class="pill e">expired</span> + <code>.retired</code>. Dot + label.</td></tr>
+      <tr><td><b>Glass badge</b></td><td><code>.gbadge</code></td><td>Same status tones, but frosted — floats <i>on</i> the smear of a card.</td></tr>
+      <tr><td><b>Filter chip</b></td><td><code>.chip</code></td><td>Glass pill; <code>.on</code> = ink fill. Horizontal scroll row.</td></tr>
+      <tr><td><b>Segmented</b></td><td><code>.seg</code></td><td>Grid / Insights / Korea Haul switch in Catalog.</td></tr>
+      <tr><td><b>Category pill</b></td><td><code>.catpill</code></td><td>Area selector in Add; <code>.on</code> = accent fill.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Inputs &amp; chrome</h3>
+  <table>
+    <thead><tr><th>Component</th><th>Class</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td><b>Search</b></td><td><code>.search</code></td><td>Glass pill, magnifier + input + clear-x. Live filter.</td></tr>
+      <tr><td><b>Field</b></td><td><code>.field</code></td><td>Label + 50px glass input. <code>.mono</code> for shade codes. Accent focus ring.</td></tr>
+      <tr><td><b>Autocomplete</b></td><td><code>.ac</code></td><td>Floating glass dropdown under Brand; own-history rows first, "add as new" last.</td></tr>
+      <tr><td><b>Button</b></td><td><code>.btn</code></td><td><code>.primary</code> (ink) · <code>.iri</code> (iridescent) · <code>.ghost</code> · <code>.full</code>. 52px, pill.</td></tr>
+      <tr><td><b>Bottom sheet</b></td><td><code>.sheet</code> + <code>.scrim</code></td><td>Duplicate warning. Spring up, blurred scrim.</td></tr>
+      <tr><td><b>Toast</b></td><td><code>.toast</code></td><td>Ink pill, green check, optional action ("Add another"). Auto-dismiss 2.6s.</td></tr>
+      <tr><td><b>Coachmark</b></td><td><code>.coach</code></td><td>Iridescent tooltip for the money-path autoplay.</td></tr>
+      <tr><td><b>Viewfinder</b></td><td><code>.viewfinder</code></td><td>Scan camera mock — corner guides, 70px shutter in thumb zone.</td></tr>
+      <tr><td><b>Insight stat</b></td><td><code>.stat</code> / <code>.panel</code></td><td>Count cards + spectrum strip (owned shades, gaps hollow).</td></tr>
+      <tr><td><b>Haul item</b></td><td><code>.haul-item</code> + <code>.subtotal</code></td><td>Checkable shopping row + sticky ₩ running total.</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ============ 2 · TOKENS ============ -->
+  <h2><span class="n">02</span> Final tokens <span style="color:var(--sg-ink-45);text-transform:none;letter-spacing:0">— hifi/seoul-glass.css</span></h2>
+  <div class="h2rule"></div>
+
+  <h3>Colour — base &amp; ink</h3>
+  <div class="swatches">
+    <div class="sw"><span class="chip" style="background:#F7F4F5"></span><div><div class="nm">--sg-pearl</div><div class="hx">#F7F4F5 · app background</div></div></div>
+    <div class="sw"><span class="chip" style="background:#1A1518"></span><div><div class="nm">--sg-ink</div><div class="hx">#1A1518 · primary text</div></div></div>
+    <div class="sw"><span class="chip" style="background:rgba(26,21,24,.45)"></span><div><div class="nm">--sg-ink-45</div><div class="hx">muted text · also -70 / -12 / hairline</div></div></div>
+    <div class="sw"><span class="chip" style="background:#EFEAEC"></span><div><div class="nm">--sg-pearl-2</div><div class="hx">#EFEAEC · section wash</div></div></div>
+  </div>
+
+  <h3>Colour — accent &amp; iridescent</h3>
+  <div class="swatches">
+    <div class="sw"><span class="chip" style="background:#FF4D62"></span><div><div class="nm">--sg-accent</div><div class="hx">#FF4D62 · sparingly (focus, caret, dot)</div></div></div>
+    <div class="sw"><span class="chip" style="background:#E11D38"></span><div><div class="nm">--sg-accent-ink</div><div class="hx">#E11D38 · accent text on light</div></div></div>
+    <div class="sw"><span class="chip" style="background:linear-gradient(118deg,#9DB8FF,#FFB7C9)"></span><div><div class="nm">--sg-iri</div><div class="hx">#9DB8FF→#FFB7C9 · hero/active ONLY</div></div></div>
+    <div class="sw"><span class="chip" style="background:rgba(255,255,255,.72);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),inset 0 0 0 1px rgba(0,0,0,.06)"></span><div><div class="nm">--sg-glass</div><div class="hx">white .72 + 20px blur + 1px highlight</div></div></div>
+  </div>
+
+  <h3>Colour — status</h3>
+  <div class="swatches">
+    <div class="sw"><span class="chip" style="background:#3E7D5C"></span><div><div class="nm">--sg-fresh</div><div class="hx">#3E7D5C · OK</div></div></div>
+    <div class="sw"><span class="chip" style="background:#A85F12"></span><div><div class="nm">--sg-soon</div><div class="hx">#A85F12 · ≤90 days</div></div></div>
+    <div class="sw"><span class="chip" style="background:#B8323E"></span><div><div class="nm">--sg-expired</div><div class="hx">#B8323E · expired</div></div></div>
+    <div class="sw"><span class="chip" style="background:#fff;box-shadow:inset 0 0 0 1px var(--sg-hairline)"></span><div><div class="nm">*-bg</div><div class="hx">each status @ 10% tint for chips</div></div></div>
+  </div>
+
+  <h3>Shape · shadow · type</h3>
+  <table>
+    <tbody>
+      <tr><td><code>--sg-r-card</code></td><td>20px</td><td>swatch cards, hero</td></tr>
+      <tr><td><code>--sg-r-tile</code></td><td>16px</td><td>rows, haul items</td></tr>
+      <tr><td><code>--sg-r-pill</code></td><td>999px</td><td>all pills, buttons, tab bar</td></tr>
+      <tr><td><code>--sg-shadow-card</code></td><td class="mono" style="white-space:normal">0 1px 2px /.05, 0 12px 28px -14px /.22</td><td>resting cards</td></tr>
+      <tr><td><code>--sg-shadow-float</code></td><td class="mono" style="white-space:normal">0 8px 30px -8px /.28</td><td>tab bar, toast, sheet</td></tr>
+      <tr><td><code>--sg-sans</code></td><td class="mono" style="white-space:normal">Pretendard → PingFang TC → Noto Sans TC</td><td>weights 500 / 700 / 800; bilingual fallback baked in</td></tr>
+      <tr><td><code>--sg-mono</code></td><td class="mono">Spline Sans Mono</td><td>shade codes, dates, counts — the identity type</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout fresh"><b>Dark mode</b> is one class: <code>.sg-dark</code> re-binds the same token names (pearl→#141016, ink→#F4EEF1, glass darkened). No component CSS changes — everything reads tokens.</div>
+
+  <div class="callout"><b>One data field to add (flag).</b> The swatch smear is data-driven: each item needs a colour triplet <code>--s1</code> / <code>--s2</code> / <code>--sdeep</code> (light → mid → deep). The Sheet has no hex column yet — add one, or derive at entry/scan time. Card legibility is solved by the fixed scrim, so any shade is safe.</div>
+
+  <!-- ============ 3 · MOTION SPEC ============ -->
+  <h2><span class="n">03</span> Interaction &amp; motion spec</h2>
+  <div class="h2rule"></div>
+  <p class="lead">One line per micro-animation, with its reduced-motion fallback. Two easings only: <code>--sg-spring</code> (cubic-bezier .34,1.56,.64,1) for tactile presses &amp; entries, <code>--sg-ease</code> (.22,.61,.36,1) for everything else.</p>
+
+  <ul class="spec">
+    <li><div class="anim">Gloss sweep<span class="css">.pc--active .pc__smear::before</span></div><div class="desc">A diagonal white streak crosses the active swatch every 4.6s — the "dewy" tap shimmer. The signature moment.<span class="rm"><b>reduced-motion</b> — animation removed; card shows its static end state (no streak).</span></div></li>
+    <li><div class="anim">Screen change<span class="css">.screen</span></div><div class="desc">New tab fades + rises 8px over .26s ease; outgoing fades out.<span class="rm"><b>reduced-motion</b> — opacity-only cross-fade, no translate.</span></div></li>
+    <li><div class="anim">Tap press<span class="css">.row / .btn / .tab--scan :active</span></div><div class="desc">Scale .975–.94 for ~.15s spring — physical "give" on press.<span class="rm"><b>reduced-motion</b> — drop scale; keep a brief background flash for feedback.</span></div></li>
+    <li><div class="anim">Row reveal<span class="css">.row.revealed .row__actions</span></div><div class="desc">Long-press (420ms) slides Opened / Retire in from the right, .26s spring; row content dims to .25.<span class="rm"><b>reduced-motion</b> — actions appear instantly, no slide.</span></div></li>
+    <li><div class="anim">Bottom sheet<span class="css">.sheet + .scrim</span></div><div class="desc">Duplicate sheet springs up from the bottom .34s; scrim blur-fades .26s. Fires on <i>Save</i>, never mid-typing.<span class="rm"><b>reduced-motion</b> — sheet appears in place; scrim fades opacity only.</span></div></li>
+    <li><div class="anim">Toast<span class="css">.toast</span></div><div class="desc">Rises 14px + fades in .3s spring, auto-dismiss 2.6s. Carries an optional inline action.<span class="rm"><b>reduced-motion</b> — fade only; same timing.</span></div></li>
+    <li><div class="anim">Scan read<span class="css">.spin → result</span></div><div class="desc">Shutter → 1.3s spinner ("Reading barcode…") → hit or miss card swaps in; cursor auto-lands on the shade field.<span class="rm"><b>reduced-motion</b> — replace spinner rotation with a static "Reading…" label + pulse.</span></div></li>
+    <li><div class="anim">Search filter<span class="css">#list-rows</span></div><div class="desc">Results re-render on every keystroke after ~2 chars — no submit. Match can surface above the keyboard.<span class="rm"><b>reduced-motion</b> — unaffected (no motion).</span></div></li>
+    <li><div class="anim">Haul subtotal<span class="css">.haul-item.done</span></div><div class="desc">Check toggles → item dims + strikes through; sticky ₩ total recomputes live (spent ↑, left ↓).<span class="rm"><b>reduced-motion</b> — instant state change.</span></div></li>
+    <li><div class="anim">Mode switch<span class="css">.app / .screen</span></div><div class="desc">Light ↔ dark cross-fades background &amp; text .35s ease so the flip isn't jarring.<span class="rm"><b>reduced-motion</b> — instant swap.</span></div></li>
+    <li><div class="anim">Caret blink<span class="css">.caret</span></div><div class="desc">Search caret blinks 1.1s when active — life signal.<span class="rm"><b>reduced-motion</b> — solid caret, no blink.</span></div></li>
+    <li><div class="anim">Money-path play<span class="css">playMoney()</span></div><div class="desc">Scripted demo: open → type "pure cake" (~95ms/char) → owned card → scan → save, with iridescent coachmarks.<span class="rm"><b>reduced-motion</b> — keep, but skip the per-character typing (set the value at once).</span></div></li>
+  </ul>
+
+  <div class="callout"><b>Global guard.</b> Wrap decorative motion in <code>@media (prefers-reduced-motion: no-preference)</code> (as the gloss sweep already is) so print, PDF export and reduced-motion users always get the legible end state, never a pre-animation <code>opacity:0</code>.</div>
+
+  <h3>Touch &amp; accessibility floor</h3>
+  <ul class="spec">
+    <li><div class="anim">Hit targets</div><div class="desc">≥44px everywhere; primary actions sit in the thumb zone (bottom 1/3). Shutter 70px, tab items 58×46.</div></li>
+    <li><div class="anim">Focus</div><div class="desc">Visible accent ring on inputs/search (<code>0 0 0 2px rgba(255,77,98,.3)</code>); never remove outlines without a replacement.</div></li>
+    <li><div class="anim">Long strings</div><div class="desc">Shade code is <code>flex:none</code> — it never truncates. Names ellipsize instead. The code is identity.</div></li>
+  </ul>
+
+  <div class="foot">Shelf Tracker · Seoul Glass design system · Deliverable E of A–G. Pairs with the handoff bundle (G) for implementation.</div>
+</div>
+</body>
+</html>

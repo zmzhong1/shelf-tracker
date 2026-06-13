@@ -1,0 +1,17 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# dependencies / tooling
+node_modules/
+
+# Apps Script deploy config — contains the bound scriptId, never commit
+.clasp.json
+
+# browser-QA scratch + generated preview (regenerate: node tools/build-preview.js)
+.playwright-cli/
+shelf-tracker/apps-script/preview.html
+
+# Claude Design export artifact
+.thumbnail

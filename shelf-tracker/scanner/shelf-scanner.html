@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shelf Scanner · Claude vision</title>
+<style>
+:root{--bg:#F6F1F0;--card:#fff;--ink:#241D1F;--muted:#8A7580;--tint:#E04F5F;--line:#E9DDDC;--ok:#3E7D5C}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,"Instrument Sans","PingFang TC","Noto Sans TC",sans-serif}
+body{background:var(--bg);color:var(--ink);font-size:15px;padding:16px;max-width:760px;margin:0 auto}
+h1{font-size:21px;font-weight:800;letter-spacing:-.02em}
+.sub{font-size:13px;color:var(--muted);margin:4px 0 14px;line-height:1.5}
+.drop{border:2px dashed #D7C8C7;border-radius:16px;background:var(--card);padding:26px 16px;text-align:center;cursor:pointer}
+.drop b{display:block;font-size:15px}
+.drop span{font-size:12.5px;color:var(--muted)}
+input[type=file]{display:none}
+.queue{margin:14px 0;display:flex;flex-direction:column;gap:8px}
+.job{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+.job img{width:46px;height:46px;object-fit:cover;border-radius:8px;flex:none}
+.job .st{font-size:12.5px;color:var(--muted)}
+.job .st.ok{color:var(--ok);font-weight:700}
+.job .st.err{color:var(--tint);font-weight:700}
+.spin{width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--tint);border-radius:50%;animation:s 1s linear infinite;display:inline-block;vertical-align:-2px;margin-right:6px}
+@keyframes s{to{transform:rotate(360deg)}}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:12.5px;margin-top:6px}
+th{background:#F2EBEA;text-align:left;padding:7px 8px;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#5C4E53}
+td{border-top:1px solid var(--line);padding:0}
+td input{width:100%;border:0;background:transparent;padding:7px 8px;font:inherit;color:var(--ink)}
+td input:focus{outline:2px solid var(--tint);outline-offset:-2px}
+.del{border:0;background:none;color:var(--muted);font-size:15px;cursor:pointer;padding:6px 10px}
+.btn{border:0;background:var(--ink);color:#fff;font-weight:700;font-size:14px;padding:12px 20px;border-radius:99px;cursor:pointer;margin-top:14px}
+.btn.tint{background:var(--tint)}
+.btn:disabled{opacity:.5}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.note{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5}
+.tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+</style>
+</head>
+<body>
+<h1>Shelf Scanner</h1>
+<div class="sub">Photograph makeup — packaging, the shade sticker, the tiny <b>까지 / EXP</b> stamp — and Claude reads it into spreadsheet rows. Then <b>Copy rows</b> → paste into Shelf Tracker's Import tab. Free with any Claude account; nothing is stored here.</div>
+
+<label class="drop" for="files">
+  <b>📸 Take or choose photos</b>
+  <span>One product per photo works best · the date stamp can be its own photo of the same item</span>
+</label>
+<input id="files" type="file" accept="image/*" multiple capture="environment">
+
+<div class="queue" id="queue"></div>
+
+<div class="tablewrap" id="resultsWrap" style="display:none">
+  <table id="results">
+    <thead><tr>
+      <th>Brand</th><th>Product</th><th>Area</th><th>Shade #</th><th>Shade name</th>
+      <th>Expiry</th><th>Mfg</th><th>Barcode</th><th>Notes</th><th></th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="bar">
+  <button class="btn tint" id="copyBtn" style="display:none">Copy rows for Import tab</button>
+  <button class="btn" id="clearBtn" style="display:none">Clear</button>
+</div>
+<div class="note">Always glance over the rows before copying — vision misreads embossed stamps sometimes, especially curved tubes. Edit any cell inline. Rows export in the sheet's 15-column order (status defaults to <b>active</b>).</div>
+
+<script>
+const BRANDS = ["1028","2aN","3CE","AOU","Banila","BBIA","Canmake","Cezanne","Clio","Colorgram","Colourpop","Daisy Doll","Dasique","DEAR DAHLIA","Dinto","Dropbe","Espoir","ettusais","FEEV","FreshO2","FWEE","Glint","glow","Hince","HISTOLAB","Holika","INTO YOU","Joocyee","JudyDoll","Laka","Laneige","Lummir","Luna","MAKE UP FOR EVER","Malu Wilz","MENOKIN","NAMING.","NARS","nuse","NYX","Out of Office","Peripera","PROEIGHT","Rare Beauty","rhode","Rom&nd","too cool for school","VDL","WAKEMAKE","YOU NEED ME","Za","花知曉 Flower Knows"];
+const AREAS = ["Lip","Cheek","Eye","Highlighter","Contour","Concealer","Base","Powder","Skin prep"];
+
+const PROMPT = `You are reading a photo of cosmetic product(s) for a personal inventory spreadsheet.
+
+Identify EVERY distinct product visible and return ONLY a JSON array (no markdown, no commentary). Each element:
+{
+ "brand_name": "",        // If it matches one of the owner's known brands, use that exact spelling: ${BRANDS.join(", ")}
+ "product_name": "",      // The product line name in Latin script if printed (e.g. "Pudding Pot"); otherwise as printed
+ "area_usage": "",        // One or more of: ${AREAS.join(", ")} — comma-separated, best judgment from product type
+ "shade_number": "",      // EXACT code as printed, as a string, preserve leading zeros (e.g. "PK03", "01")
+ "shade_name": "",        // e.g. "Cherry"
+ "expiration_date": "",   // Format "MMM D, YYYY". Korean: 까지 = use-by. Stamps like 20280610까지 or EXP 2028.06.10 → "Jun 10, 2028"
+ "manufacture_date": "",  // 제조 / MFG / MFD stamps, same output format. Leave "" if absent
+ "barcode": "",           // digits only, if a barcode number is legible
+ "notes": ""              // anything uncertain, e.g. "expiry stamp blurry, could be 2027"
+}
+Rules: never invent a date you cannot actually read — leave it "" and say so in notes. If the same physical product appears to be photographed twice (e.g. front + date stamp), still output one object per product per photo; the owner merges duplicates. Output strictly valid JSON.`;
+
+const tbody = document.querySelector("#results tbody");
+const rows = [];
+
+document.getElementById("files").addEventListener("change", e=>{
+  [...e.target.files].forEach(scanFile);
+  e.target.value = "";
+});
+
+async function scanFile(file){
+  const job = document.createElement("div"); job.className="job";
+  const url = URL.createObjectURL(file);
+  job.innerHTML = `<img src="${url}"><div><div style="font-size:13px;font-weight:600">${file.name||"photo"}</div><div class="st"><span class="spin"></span>Reading…</div></div>`;
+  document.getElementById("queue").appendChild(job);
+  const st = job.querySelector(".st");
+  try{
+    const b64 = await resizeToBase64(file, 1568);
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        model:"claude-sonnet-4-20250514",
+        max_tokens:1000,
+        messages:[{role:"user",content:[
+          {type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},
+          {type:"text",text:PROMPT}
+        ]}]
+      })
+    });
+    const data = await res.json();
+    const text = (data.content||[]).filter(c=>c.type==="text").map(c=>c.text).join("\n");
+    const clean = text.replace(/```json|```/g,"").trim();
+    const arr = JSON.parse(clean);
+    if(!Array.isArray(arr) || !arr.length) throw new Error("no products found");
+    arr.forEach(addRow);
+    st.className="st ok"; st.textContent="✓ "+arr.length+" product"+(arr.length>1?"s":"")+" extracted";
+  }catch(err){
+    st.className="st err"; st.textContent="✕ "+(err.message||"failed")+" — retake closer / brighter";
+  }
+}
+
+function resizeToBase64(file, max){
+  return new Promise((res,rej)=>{
+    const img=new Image();
+    img.onload=()=>{
+      const sc=Math.min(1, max/Math.max(img.width,img.height));
+      const c=document.createElement("canvas");
+      c.width=Math.round(img.width*sc); c.height=Math.round(img.height*sc);
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+      res(c.toDataURL("image/jpeg",.88).split(",")[1]);
+    };
+    img.onerror=()=>rej(new Error("image load failed"));
+    img.src=URL.createObjectURL(file);
+  });
+}
+
+const FIELDS=["brand_name","product_name","area_usage","shade_number","shade_name","expiration_date","manufacture_date","barcode","notes"];
+function addRow(o){
+  const r = FIELDS.reduce((a,f)=>(a[f]=String(o[f]||""),a),{});
+  rows.push(r);
+  const tr=document.createElement("tr");
+  tr.innerHTML = FIELDS.map(f=>`<td><input data-f="${f}" value="${esc(r[f])}"></td>`).join("")+`<td><button class="del" title="Remove">✕</button></td>`;
+  tr.querySelectorAll("input").forEach(inp=>inp.oninput=()=>r[inp.dataset.f]=inp.value);
+  tr.querySelector(".del").onclick=()=>{rows.splice(rows.indexOf(r),1);tr.remove();sync();};
+  tbody.appendChild(tr); sync();
+}
+function esc(s){return s.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");}
+function sync(){
+  const has=rows.length>0;
+  document.getElementById("resultsWrap").style.display=has?"block":"none";
+  document.getElementById("copyBtn").style.display=has?"inline-block":"none";
+  document.getElementById("clearBtn").style.display=has?"inline-block":"none";
+}
+
+/* Export in the sheet's 15-column order:
+   brand, product, area, shade#, shade, exp, mfg, opened(""), pao(""), barcode, status(active), price(""), purchased(""), image(""), notes */
+document.getElementById("copyBtn").onclick=()=>{
+  const tsv = rows.map(r=>[
+    r.brand_name,r.product_name,r.area_usage,r.shade_number,r.shade_name,
+    r.expiration_date,r.manufacture_date,"","",r.barcode,"active","","","",r.notes
+  ].map(v=>String(v).replace(/\t/g," ")).join("\t")).join("\n");
+  const done=()=>{const b=document.getElementById("copyBtn");const t=b.textContent;
+    b.textContent="Copied ✓ — paste into Import tab";setTimeout(()=>b.textContent=t,2400);};
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(tsv).then(done).catch(()=>prompt("Copy your rows:",tsv));
+  } else prompt("Copy your rows:",tsv);
+};
+document.getElementById("clearBtn").onclick=()=>{rows.length=0;tbody.innerHTML="";document.getElementById("queue").innerHTML="";sync();};
+</script>
+</body>
+</html>
