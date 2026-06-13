@@ -4,173 +4,374 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Shelf Scanner · Claude vision</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spline+Sans+Mono:wght@400;500;600&display=swap">
 <style>
-:root{--bg:#F6F1F0;--card:#fff;--ink:#241D1F;--muted:#8A7580;--tint:#E04F5F;--line:#E9DDDC;--ok:#3E7D5C}
-*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,"Instrument Sans","PingFang TC","Noto Sans TC",sans-serif}
-body{background:var(--bg);color:var(--ink);font-size:15px;padding:16px;max-width:760px;margin:0 auto}
-h1{font-size:21px;font-weight:800;letter-spacing:-.02em}
-.sub{font-size:13px;color:var(--muted);margin:4px 0 14px;line-height:1.5}
-.drop{border:2px dashed #D7C8C7;border-radius:16px;background:var(--card);padding:26px 16px;text-align:center;cursor:pointer}
-.drop b{display:block;font-size:15px}
-.drop span{font-size:12.5px;color:var(--muted)}
+/* Seoul Glass tokens (inlined — this ships as a standalone claude.ai artifact) */
+:root{
+  --sg-pearl:#F7F4F5;--sg-pearl-2:#EFEAEC;--sg-ink:#1A1518;
+  --sg-ink-70:rgba(26,21,24,.70);--sg-ink-45:rgba(26,21,24,.45);--sg-ink-12:rgba(26,21,24,.12);--sg-hairline:rgba(26,21,24,.09);
+  --sg-glass:rgba(255,255,255,.72);--sg-glass-strong:rgba(255,255,255,.86);--sg-glass-blur:20px;
+  --sg-glass-hi:inset 0 1px 0 rgba(255,255,255,.9);--sg-glass-edge:1px solid rgba(255,255,255,.6);
+  --sg-accent:#FF4D62;--sg-accent-ink:#E11D38;
+  --sg-iri:linear-gradient(118deg,#9DB8FF,#FFB7C9);
+  --sg-expired:#B8323E;--sg-soon:#A85F12;--sg-fresh:#3E7D5C;
+  --sg-expired-bg:rgba(184,50,62,.10);--sg-soon-bg:rgba(168,95,18,.10);--sg-fresh-bg:rgba(62,125,92,.10);
+  --sg-r-card:20px;--sg-r-tile:16px;--sg-r-pill:999px;
+  --sg-shadow-card:0 1px 2px rgba(26,21,24,.05),0 12px 28px -14px rgba(26,21,24,.22);
+  --sg-shadow-float:0 8px 30px -8px rgba(26,21,24,.28);
+  --sg-spring:cubic-bezier(.34,1.56,.64,1);--sg-ease:cubic-bezier(.22,.61,.36,1);
+  --sg-sans:"Pretendard","Pretendard Variable",-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+  --sg-mono:"Spline Sans Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+body.sg-dark{
+  --sg-pearl:#141016;--sg-pearl-2:#1C1620;--sg-ink:#F4EEF1;
+  --sg-ink-70:rgba(244,238,241,.72);--sg-ink-45:rgba(244,238,241,.45);--sg-ink-12:rgba(244,238,241,.14);--sg-hairline:rgba(244,238,241,.10);
+  --sg-glass:rgba(40,32,44,.62);--sg-glass-strong:rgba(48,38,52,.80);
+  --sg-glass-hi:inset 0 1px 0 rgba(255,255,255,.10);--sg-glass-edge:1px solid rgba(255,255,255,.08);
+  --sg-expired-bg:rgba(184,50,62,.20);--sg-soon-bg:rgba(168,95,18,.22);--sg-fresh-bg:rgba(62,125,92,.22);
+  --sg-shadow-card:0 1px 2px rgba(0,0,0,.4),0 14px 30px -14px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:var(--sg-sans);color:var(--sg-ink);min-height:100vh;padding:34px 18px 70px;-webkit-font-smoothing:antialiased;display:flex;justify-content:center;
+  background:radial-gradient(110% 60% at 10% -10%,#FBEFF2 0,transparent 42%),radial-gradient(110% 70% at 100% 0%,#EEF1FB 0,transparent 40%),#ECE7E9;
+  transition:background .35s var(--sg-ease)}
+body.sg-dark{background:radial-gradient(110% 60% at 10% -10%,#241a26 0,transparent 42%),radial-gradient(110% 70% at 100% 0%,#1a2030 0,transparent 40%),#0f0b12}
+.panel{width:100%;max-width:780px;border-radius:26px;overflow:hidden;background:var(--sg-pearl);
+  box-shadow:0 40px 80px -34px rgba(26,21,24,.5),inset 0 0 0 1px var(--sg-hairline);transition:background .35s var(--sg-ease),color .35s var(--sg-ease)}
+
+.chrome{display:flex;align-items:center;gap:10px;padding:13px 18px;border-bottom:1px solid var(--sg-hairline);
+  background:var(--sg-glass);backdrop-filter:blur(var(--sg-glass-blur));-webkit-backdrop-filter:blur(var(--sg-glass-blur))}
+.lights{display:flex;gap:7px}.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.lights i:nth-child(1){background:#FF5F57}.lights i:nth-child(2){background:#FEBC2E}.lights i:nth-child(3){background:#28C840}
+.chrome .url{flex:1;text-align:center;font-family:var(--sg-mono);font-size:12.5px;color:var(--sg-ink-45)}
+.mode-toggle{display:inline-flex;gap:3px;padding:3px;border-radius:999px;background:var(--sg-glass-strong);border:var(--sg-glass-edge)}
+.mode-toggle button{font-family:var(--sg-sans);font-size:12px;font-weight:600;color:var(--sg-ink-45);border:0;background:transparent;padding:5px 12px;border-radius:999px;cursor:pointer}
+.mode-toggle button.on{color:var(--sg-ink);background:var(--sg-pearl);box-shadow:0 1px 3px rgba(26,21,24,.12)}
+
+.body{padding:22px 24px 26px;display:flex;flex-direction:column;gap:18px}
+.head h1{font-size:25px;font-weight:800;letter-spacing:-.02em;margin:0 0 5px}
+.head p{font-size:13.5px;color:var(--sg-ink-70);margin:0;line-height:1.5}
+.head .stamps{font-family:var(--sg-mono);color:var(--sg-accent-ink)}
+.section-label{font-family:var(--sg-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--sg-ink-45)}
+
+/* upload drop */
+.drop{display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:16px;cursor:pointer;
+  background:var(--sg-glass);box-shadow:var(--sg-glass-hi);border:1.5px dashed rgba(26,21,24,.18)}
+.drop .ic{width:44px;height:44px;border-radius:13px;flex:none;display:grid;place-items:center;background:var(--sg-iri);color:#1A1518}
+.drop .ic svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.9}
+.drop b{display:block;font-size:15px;font-weight:700}
+.drop span{font-size:12.5px;color:var(--sg-ink-45)}
 input[type=file]{display:none}
-.queue{margin:14px 0;display:flex;flex-direction:column;gap:8px}
-.job{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
-.job img{width:46px;height:46px;object-fit:cover;border-radius:8px;flex:none}
-.job .st{font-size:12.5px;color:var(--muted)}
-.job .st.ok{color:var(--ok);font-weight:700}
-.job .st.err{color:var(--tint);font-weight:700}
-.spin{width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--tint);border-radius:50%;animation:s 1s linear infinite;display:inline-block;vertical-align:-2px;margin-right:6px}
-@keyframes s{to{transform:rotate(360deg)}}
-table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:12.5px;margin-top:6px}
-th{background:#F2EBEA;text-align:left;padding:7px 8px;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#5C4E53}
-td{border-top:1px solid var(--line);padding:0}
-td input{width:100%;border:0;background:transparent;padding:7px 8px;font:inherit;color:var(--ink)}
-td input:focus{outline:2px solid var(--tint);outline-offset:-2px}
-.del{border:0;background:none;color:var(--muted);font-size:15px;cursor:pointer;padding:6px 10px}
-.btn{border:0;background:var(--ink);color:#fff;font-weight:700;font-size:14px;padding:12px 20px;border-radius:99px;cursor:pointer;margin-top:14px}
-.btn.tint{background:var(--tint)}
-.btn:disabled{opacity:.5}
-.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.note{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5}
-.tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+/* photo queue */
+.queue{display:flex;gap:12px;flex-wrap:wrap}
+.photo{width:104px;display:flex;flex-direction:column;gap:6px}
+.photo .frame{position:relative;width:104px;height:104px;border-radius:14px;overflow:hidden;box-shadow:var(--sg-shadow-card);background:linear-gradient(150deg,#d9cdd0,#b3a3a8)}
+.photo .frame img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.photo .frame .state{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(255,255,255,.88);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);box-shadow:0 2px 6px rgba(0,0,0,.18)}
+.photo .frame .state svg{width:15px;height:15px;fill:none;stroke-width:2.4}
+.photo.read .state{color:var(--sg-fresh)}.photo.read .state svg{stroke:var(--sg-fresh)}
+.photo.fail .state{color:var(--sg-expired)}.photo.fail .state svg{stroke:var(--sg-expired)}
+.photo.fail .frame{outline:2px solid var(--sg-expired);outline-offset:-2px}
+.photo.reading .frame img{filter:saturate(.7) brightness(.9)}
+.spin{width:16px;height:16px;border-radius:50%;border:2px solid var(--sg-ink-12);border-top-color:var(--sg-accent);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.photo .cap{font-size:11.5px;font-weight:600;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.photo.read .cap{color:var(--sg-fresh)}.photo.fail .cap{color:var(--sg-expired)}.photo.reading .cap{color:var(--sg-ink-45)}
+.photo .cap .sub{display:block;font-weight:400;color:var(--sg-ink-45);font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* review banner */
+.review-note{display:flex;align-items:center;gap:11px;padding:12px 15px;border-radius:13px;background:var(--sg-soon-bg);color:var(--sg-soon);font-size:13.5px;font-weight:600}
+.review-note svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2;flex:none}
+.review-note b{font-weight:800}
+
+/* results table */
+.tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:16px}
+.tablecard{border-radius:16px;overflow:hidden;box-shadow:var(--sg-glass-hi);border:var(--sg-glass-edge);background:var(--sg-glass);min-width:660px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+thead th{text-align:left;padding:11px 13px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--sg-ink-45);border-bottom:1px solid var(--sg-hairline);white-space:nowrap}
+thead th .ko{font-family:var(--sg-mono);text-transform:none;letter-spacing:0;color:var(--sg-accent-ink)}
+tbody td{padding:4px 7px;border-bottom:1px solid var(--sg-hairline);vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+.cell{min-height:34px;padding:6px 8px;border-radius:8px;outline:none;font-family:var(--sg-sans);color:var(--sg-ink)}
+.cell.mono{font-family:var(--sg-mono);font-weight:600;letter-spacing:.02em}
+.cell:focus{box-shadow:inset 0 0 0 2px rgba(255,77,98,.35);background:var(--sg-glass-strong)}
+td.lowconf .cell{background:var(--sg-expired-bg);color:var(--sg-expired)}
+td.lowconf .cell:empty::after{content:"?";font-weight:800}
+td.lowconf.fixed .cell{background:transparent;color:var(--sg-ink)}
+.chk{width:22px;height:22px;border-radius:6px;border:2px solid var(--sg-ink-12);display:grid;place-items:center;cursor:pointer;margin:0 auto}
+.chk svg{width:13px;height:13px;stroke:#fff;fill:none;stroke-width:2.6;opacity:0}
+.chk.on{background:var(--sg-fresh);border-color:var(--sg-fresh)}.chk.on svg{opacity:1}
+.thumb{width:34px;height:34px;border-radius:8px;object-fit:cover;background:linear-gradient(150deg,#d9cdd0,#b3a3a8);display:block}
+.conf{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;white-space:nowrap}
+.conf.hi{color:var(--sg-fresh)}.conf.lo{color:var(--sg-expired)}
+.conf::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.del{border:0;background:none;color:var(--sg-ink-45);font-size:17px;cursor:pointer;padding:4px 8px}
+
+.foot{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.foot .hint{font-size:12.5px;color:var(--sg-ink-45);line-height:1.5;max-width:46ch}
+.foot .hint code{font-family:var(--sg-mono);font-size:11.5px;color:var(--sg-accent-ink)}
+.actions{display:flex;gap:10px;flex:none}
+.btn{height:46px;padding:0 20px;border-radius:999px;font-family:var(--sg-sans);font-size:14.5px;font-weight:700;cursor:pointer;border:0;display:inline-flex;align-items:center;gap:8px;transition:transform .15s var(--sg-spring)}
+.btn:active{transform:scale(.97)}.btn:disabled{opacity:.5}
+.btn.ghost{background:transparent;color:var(--sg-ink-70);border:1.5px solid var(--sg-ink-12)}
+.btn.primary{background:var(--sg-ink);color:var(--sg-pearl)}
+.btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2}
+.empty{font-size:13px;color:var(--sg-ink-45);padding:18px 4px;line-height:1.5}
+
+.toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%) translateY(16px);z-index:90;display:flex;align-items:center;gap:10px;padding:13px 18px;border-radius:14px;
+  background:var(--sg-ink);color:var(--sg-pearl);box-shadow:var(--sg-shadow-float);opacity:0;visibility:hidden;transition:opacity .3s var(--sg-spring),transform .3s var(--sg-spring),visibility .3s;font-size:14px;font-weight:600}
+.toast.show{opacity:1;visibility:visible;transform:translateX(-50%)}
+.toast .tc{width:22px;height:22px;border-radius:50%;background:var(--sg-fresh);display:grid;place-items:center;flex:none}
+.toast .tc svg{width:13px;height:13px;stroke:#fff;fill:none;stroke-width:2.6}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
-<h1>Shelf Scanner</h1>
-<div class="sub">Photograph makeup — packaging, the shade sticker, the tiny <b>까지 / EXP</b> stamp — and Claude reads it into spreadsheet rows. Then <b>Copy rows</b> → paste into Shelf Tracker's Import tab. Free with any Claude account; nothing is stored here.</div>
+<div class="panel" id="panel">
+  <div class="chrome">
+    <div class="lights"><i></i><i></i><i></i></div>
+    <div class="url">claude.ai · Shelf Scanner</div>
+    <div class="mode-toggle" id="darkToggle"><button class="on" data-mode="light">Light</button><button data-mode="dark">Dark</button></div>
+  </div>
 
-<label class="drop" for="files">
-  <b>📸 Take or choose photos</b>
-  <span>One product per photo works best · the date stamp can be its own photo of the same item</span>
-</label>
-<input id="files" type="file" accept="image/*" multiple capture="environment">
+  <div class="body">
+    <div class="head">
+      <h1>Shelf Scanner</h1>
+      <p>Photograph your products — Claude reads brand, shade code, and the <span class="stamps">까지</span> use-by / <span class="stamps">제조</span> mfg stamps. Embossed stamps are easy to misread, so every reading is yours to confirm before it leaves this screen. Free with any Claude account; nothing is stored here.</p>
+    </div>
 
-<div class="queue" id="queue"></div>
+    <label class="drop" for="files">
+      <div class="ic"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
+      <div><b>Take or choose photos</b><span>One product per photo · the date stamp can be its own photo of the same item</span></div>
+    </label>
+    <input id="files" type="file" accept="image/*" multiple capture="environment">
 
-<div class="tablewrap" id="resultsWrap" style="display:none">
-  <table id="results">
-    <thead><tr>
-      <th>Brand</th><th>Product</th><th>Area</th><th>Shade #</th><th>Shade name</th>
-      <th>Expiry</th><th>Mfg</th><th>Barcode</th><th>Notes</th><th></th>
-    </tr></thead>
-    <tbody></tbody>
-  </table>
+    <div class="section-label" id="queue-label" style="display:none">Photo queue</div>
+    <div class="queue" id="queue"></div>
+
+    <div class="review-note" id="review-note" style="display:none">
+      <svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <span>Review before trusting — <b>tinted cells</b> are low-confidence reads. Tap any cell to fix it; the warning clears.</span>
+    </div>
+
+    <div class="section-label" id="results-label" style="display:none">Results</div>
+    <div class="tablewrap" id="results-wrap" style="display:none">
+      <div class="tablecard">
+        <table id="results">
+          <thead><tr>
+            <th style="width:34px"></th><th style="width:44px">Photo</th><th>Brand</th><th>Product</th>
+            <th>Shade</th><th>Name</th><th>Use-by <span class="ko">까지</span></th><th>Mfg <span class="ko">제조</span></th>
+            <th style="width:92px">Confidence</th><th style="width:30px"></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="foot" id="foot" style="display:none">
+      <div class="hint">Copies in the exact 16-column order Tracker’s <b>Import</b> tab expects (status defaults to <code>active</code>; swatch colour is derived on import). Unchecked rows are skipped — glance over the dates first.</div>
+      <div class="actions">
+        <button class="btn ghost" id="clearBtn"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>Clear</button>
+        <button class="btn primary" id="copyBtn"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span id="copy-label">Copy rows → Import</span></button>
+      </div>
+    </div>
+  </div>
 </div>
 
-<div class="bar">
-  <button class="btn tint" id="copyBtn" style="display:none">Copy rows for Import tab</button>
-  <button class="btn" id="clearBtn" style="display:none">Clear</button>
-</div>
-<div class="note">Always glance over the rows before copying — vision misreads embossed stamps sometimes, especially curved tubes. Edit any cell inline. Rows export in the sheet's 15-column order (status defaults to <b>active</b>).</div>
+<div class="toast" id="toast"><div class="tc"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div><span id="toast-text">Copied</span></div>
 
 <script>
-const BRANDS = ["1028","2aN","3CE","AOU","Banila","BBIA","Canmake","Cezanne","Clio","Colorgram","Colourpop","Daisy Doll","Dasique","DEAR DAHLIA","Dinto","Dropbe","Espoir","ettusais","FEEV","FreshO2","FWEE","Glint","glow","Hince","HISTOLAB","Holika","INTO YOU","Joocyee","JudyDoll","Laka","Laneige","Lummir","Luna","MAKE UP FOR EVER","Malu Wilz","MENOKIN","NAMING.","NARS","nuse","NYX","Out of Office","Peripera","PROEIGHT","Rare Beauty","rhode","Rom&nd","too cool for school","VDL","WAKEMAKE","YOU NEED ME","Za","花知曉 Flower Knows"];
-const AREAS = ["Lip","Cheek","Eye","Highlighter","Contour","Concealer","Base","Powder","Skin prep"];
+"use strict";
+var $ = function(s){ return document.querySelector(s); };
+var $$ = function(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); };
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-const PROMPT = `You are reading a photo of cosmetic product(s) for a personal inventory spreadsheet.
+var CHK = '<svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>';
+var XICON = '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
-Identify EVERY distinct product visible and return ONLY a JSON array (no markdown, no commentary). Each element:
-{
- "brand_name": "",        // If it matches one of the owner's known brands, use that exact spelling: ${BRANDS.join(", ")}
- "product_name": "",      // The product line name in Latin script if printed (e.g. "Pudding Pot"); otherwise as printed
- "area_usage": "",        // One or more of: ${AREAS.join(", ")} — comma-separated, best judgment from product type
- "shade_number": "",      // EXACT code as printed, as a string, preserve leading zeros (e.g. "PK03", "01")
- "shade_name": "",        // e.g. "Cherry"
- "expiration_date": "",   // Format "MMM D, YYYY". Korean: 까지 = use-by. Stamps like 20280610까지 or EXP 2028.06.10 → "Jun 10, 2028"
- "manufacture_date": "",  // 제조 / MFG / MFD stamps, same output format. Leave "" if absent
- "barcode": "",           // digits only, if a barcode number is legible
- "notes": ""              // anything uncertain, e.g. "expiry stamp blurry, could be 2027"
-}
-Rules: never invent a date you cannot actually read — leave it "" and say so in notes. If the same physical product appears to be photographed twice (e.g. front + date stamp), still output one object per product per photo; the owner merges duplicates. Output strictly valid JSON.`;
+var BRANDS = ["1028","2aN","3CE","AOU","Banila","BBIA","Canmake","Cezanne","Clio","Colorgram","Colourpop","Daisy Doll","Dasique","DEAR DAHLIA","Dinto","Dropbe","Espoir","ettusais","FEEV","FreshO2","FWEE","Glint","glow","Hince","HISTOLAB","Holika","INTO YOU","Joocyee","JudyDoll","Laka","Laneige","Lummir","Luna","MAKE UP FOR EVER","Malu Wilz","MENOKIN","NAMING.","NARS","nuse","NYX","Out of Office","Peripera","PROEIGHT","Rare Beauty","rhode","Rom&nd","too cool for school","VDL","WAKEMAKE","YOU NEED ME","Za","花知曉 Flower Knows"];
+var AREAS = ["Lip","Cheek","Eye","Highlighter","Contour","Concealer","Base","Powder","Skin prep"];
 
-const tbody = document.querySelector("#results tbody");
-const rows = [];
+var PROMPT = 'You are reading a photo of cosmetic product(s) for a personal inventory spreadsheet.\n\n'
+ + 'Identify EVERY distinct product visible and return ONLY a JSON array (no markdown, no commentary). Each element:\n{\n'
+ + ' "brand_name": "",        // If it matches one of the owner\'s known brands, use that exact spelling: ' + BRANDS.join(", ") + '\n'
+ + ' "product_name": "",      // The product line name in Latin script if printed (e.g. "Pudding Pot"); otherwise as printed\n'
+ + ' "area_usage": "",        // One or more of: ' + AREAS.join(", ") + ' — comma-separated, best judgment from product type\n'
+ + ' "shade_number": "",      // EXACT code as printed, as a string, preserve leading zeros (e.g. "PK03", "01")\n'
+ + ' "shade_name": "",        // e.g. "Cherry"\n'
+ + ' "expiration_date": "",   // Format "MMM D, YYYY". Korean: 까지 = use-by. Stamps like 20280610까지 or EXP 2028.06.10 -> "Jun 10, 2028"\n'
+ + ' "manufacture_date": "",  // 제조 / MFG / MFD stamps, same output format. Leave "" if absent\n'
+ + ' "barcode": "",           // digits only, if a barcode number is legible\n'
+ + ' "notes": "",             // anything uncertain, e.g. "expiry stamp blurry, could be 2027"; call out 0/O and 1/l/I confusions\n'
+ + ' "confidence": ""         // "high" if brand+shade+dates are clearly legible; "low" if any embossed stamp or code was hard to read\n'
+ + '}\nRules: never invent a date you cannot actually read — leave it "" and say so in notes, and set confidence "low". If the same physical product appears twice (front + date stamp), still output one object per product per photo; the owner merges duplicates. Output strictly valid JSON.';
 
-document.getElementById("files").addEventListener("change", e=>{
-  [...e.target.files].forEach(scanFile);
-  e.target.value = "";
+var FIELDS = ["brand_name","product_name","area_usage","shade_number","shade_name","expiration_date","manufacture_date","barcode","notes","confidence"];
+var rows = [];   // {data:{...}, thumb:url, checked:true}
+var photos = []; // {file, url, el}
+
+/* ---- dark toggle (no localStorage — hard rule) ---- */
+(function(){
+  if (window.matchMedia && matchMedia('(prefers-color-scheme:dark)').matches){
+    document.body.classList.add('sg-dark');
+    $$('#darkToggle button').forEach(function(b){ b.classList.toggle('on', b.dataset.mode==='dark'); });
+  }
+  $('#darkToggle').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if(!b) return;
+    document.body.classList.toggle('sg-dark', b.dataset.mode==='dark');
+    $$('#darkToggle button').forEach(function(x){ x.classList.toggle('on', x===b); });
+  });
+})();
+
+/* ---- file intake ---- */
+$('#files').addEventListener('change', function(e){
+  Array.prototype.slice.call(e.target.files).forEach(addPhoto);
+  e.target.value = '';
+});
+$('#clearBtn').addEventListener('click', function(){
+  rows = []; photos = []; $('#queue').innerHTML = ''; render(); $('#queue-label').style.display='none';
 });
 
-async function scanFile(file){
-  const job = document.createElement("div"); job.className="job";
-  const url = URL.createObjectURL(file);
-  job.innerHTML = `<img src="${url}"><div><div style="font-size:13px;font-weight:600">${file.name||"photo"}</div><div class="st"><span class="spin"></span>Reading…</div></div>`;
-  document.getElementById("queue").appendChild(job);
-  const st = job.querySelector(".st");
+function addPhoto(file){
+  var url = URL.createObjectURL(file);
+  var el = document.createElement('div'); el.className = 'photo reading';
+  el.innerHTML = '<div class="frame"><img src="'+url+'" alt=""><div class="state"><span class="spin"></span></div></div><div class="cap">reading…<span class="sub">'+esc(file.name||'photo')+'</span></div>';
+  $('#queue').appendChild(el);
+  $('#queue-label').style.display = 'block';
+  var p = { file:file, url:url, el:el };
+  photos.push(p);
+  scan(p);
+}
+
+async function scan(p){
+  p.el.className = 'photo reading';
+  p.el.querySelector('.state').innerHTML = '<span class="spin"></span>';
+  p.el.querySelector('.cap').innerHTML = 'reading…<span class="sub">'+esc(p.file.name||'photo')+'</span>';
   try{
-    const b64 = await resizeToBase64(file, 1568);
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
+    var b64 = await resizeToBase64(p.file, 1568);
+    var res = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({
-        model:"claude-sonnet-4-20250514",
-        max_tokens:1000,
+        model:"claude-sonnet-4-20250514", max_tokens:1000,
         messages:[{role:"user",content:[
           {type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},
           {type:"text",text:PROMPT}
         ]}]
       })
     });
-    const data = await res.json();
-    const text = (data.content||[]).filter(c=>c.type==="text").map(c=>c.text).join("\n");
-    const clean = text.replace(/```json|```/g,"").trim();
-    const arr = JSON.parse(clean);
+    var data = await res.json();
+    var text = (data.content||[]).filter(function(c){return c.type==="text";}).map(function(c){return c.text;}).join("\n");
+    var arr = JSON.parse(text.replace(/```json|```/g,"").trim());
     if(!Array.isArray(arr) || !arr.length) throw new Error("no products found");
-    arr.forEach(addRow);
-    st.className="st ok"; st.textContent="✓ "+arr.length+" product"+(arr.length>1?"s":"")+" extracted";
+    arr.forEach(function(o){ addRow(o, p.url); });
+    p.el.className = 'photo read';
+    p.el.querySelector('.state').innerHTML = CHK;
+    var first = arr[0];
+    p.el.querySelector('.cap').innerHTML = 'read<span class="sub">'+esc([first.brand_name,first.shade_number].filter(Boolean).join(' · ')||(arr.length+' item'+(arr.length>1?'s':'')))+'</span>';
   }catch(err){
-    st.className="st err"; st.textContent="✕ "+(err.message||"failed")+" — retake closer / brighter";
+    p.el.className = 'photo fail';
+    p.el.querySelector('.state').innerHTML = XICON;
+    p.el.querySelector('.cap').innerHTML = 'retake<span class="sub">'+esc(err.message||'failed')+'</span>';
   }
 }
 
 function resizeToBase64(file, max){
-  return new Promise((res,rej)=>{
-    const img=new Image();
-    img.onload=()=>{
-      const sc=Math.min(1, max/Math.max(img.width,img.height));
-      const c=document.createElement("canvas");
-      c.width=Math.round(img.width*sc); c.height=Math.round(img.height*sc);
+  return new Promise(function(res,rej){
+    var img = new Image();
+    img.onload = function(){
+      var sc = Math.min(1, max/Math.max(img.width,img.height));
+      var c = document.createElement("canvas");
+      c.width = Math.round(img.width*sc); c.height = Math.round(img.height*sc);
       c.getContext("2d").drawImage(img,0,0,c.width,c.height);
       res(c.toDataURL("image/jpeg",.88).split(",")[1]);
     };
-    img.onerror=()=>rej(new Error("image load failed"));
-    img.src=URL.createObjectURL(file);
+    img.onerror = function(){ rej(new Error("image load failed")); };
+    img.src = URL.createObjectURL(file);
   });
 }
 
-const FIELDS=["brand_name","product_name","area_usage","shade_number","shade_name","expiration_date","manufacture_date","barcode","notes"];
-function addRow(o){
-  const r = FIELDS.reduce((a,f)=>(a[f]=String(o[f]||""),a),{});
-  rows.push(r);
-  const tr=document.createElement("tr");
-  tr.innerHTML = FIELDS.map(f=>`<td><input data-f="${f}" value="${esc(r[f])}"></td>`).join("")+`<td><button class="del" title="Remove">✕</button></td>`;
-  tr.querySelectorAll("input").forEach(inp=>inp.oninput=()=>r[inp.dataset.f]=inp.value);
-  tr.querySelector(".del").onclick=()=>{rows.splice(rows.indexOf(r),1);tr.remove();sync();};
-  tbody.appendChild(tr); sync();
-}
-function esc(s){return s.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");}
-function sync(){
-  const has=rows.length>0;
-  document.getElementById("resultsWrap").style.display=has?"block":"none";
-  document.getElementById("copyBtn").style.display=has?"inline-block":"none";
-  document.getElementById("clearBtn").style.display=has?"inline-block":"none";
+function addRow(o, thumb){
+  var d = FIELDS.reduce(function(a,f){ a[f]=String(o[f]||''); return a; }, {});
+  rows.push({ data:d, thumb:thumb, checked:true });
+  render();
 }
 
-/* Export in the sheet's 15-column order:
-   brand, product, area, shade#, shade, exp, mfg, opened(""), pao(""), barcode, status(active), price(""), purchased(""), image(""), notes */
-document.getElementById("copyBtn").onclick=()=>{
-  const tsv = rows.map(r=>[
-    r.brand_name,r.product_name,r.area_usage,r.shade_number,r.shade_name,
-    r.expiration_date,r.manufacture_date,"","",r.barcode,"active","","","",r.notes
-  ].map(v=>String(v).replace(/\t/g," ")).join("\t")).join("\n");
-  const done=()=>{const b=document.getElementById("copyBtn");const t=b.textContent;
-    b.textContent="Copied ✓ — paste into Import tab";setTimeout(()=>b.textContent=t,2400);};
-  if(navigator.clipboard&&navigator.clipboard.writeText){
-    navigator.clipboard.writeText(tsv).then(done).catch(()=>prompt("Copy your rows:",tsv));
-  } else prompt("Copy your rows:",tsv);
-};
-document.getElementById("clearBtn").onclick=()=>{rows.length=0;tbody.innerHTML="";document.getElementById("queue").innerHTML="";sync();};
+/* ---- render results ---- */
+function lowConf(d){ return (d.confidence||'').toLowerCase()==='low'; }
+function render(){
+  var has = rows.length>0;
+  $('#results-wrap').style.display = has?'block':'none';
+  $('#results-label').style.display = has?'block':'none';
+  $('#review-note').style.display = (has && rows.some(function(r){ return lowConf(r.data); }))?'flex':'none';
+  $('#foot').style.display = has?'flex':'none';
+  if(!has){ $('#results tbody').innerHTML=''; return; }
+  var tb = $('#results tbody');
+  tb.innerHTML = rows.map(function(r,i){
+    var d = r.data, low = lowConf(d);
+    // on a low-confidence row, flag the three most-misread fields (shade code + both dates) for review
+    var warnExp = low, warnMfg = low, warnSn = low;
+    function cell(field,mono,warn){
+      var v = d[field]||'';
+      return '<td class="'+(warn?'lowconf':'')+'" data-i="'+i+'" data-f="'+field+'">'
+        +'<div class="cell'+(mono?' mono':'')+'" contenteditable="true">'+esc(v)+'</div></td>';
+    }
+    var conf = low
+      ? '<span class="conf lo" title="'+esc(d.notes||'')+'">low'+(d.notes?' · '+esc(d.notes.split(/[,.;]/)[0].slice(0,16)):'')+'</span>'
+      : '<span class="conf hi">high</span>';
+    return '<tr>'
+      +'<td><div class="chk'+(r.checked?' on':'')+'" data-chk="'+i+'">'+CHK+'</div></td>'
+      +'<td>'+(r.thumb?'<img class="thumb" src="'+r.thumb+'" alt="">':'<div class="thumb"></div>')+'</td>'
+      + cell('brand_name',false,false) + cell('product_name',false,false)
+      + cell('shade_number',true,warnSn) + cell('shade_name',false,false)
+      + cell('expiration_date',true,warnExp) + cell('manufacture_date',true,warnMfg)
+      + '<td>'+conf+'</td>'
+      + '<td><button class="del" data-del="'+i+'" title="Remove">×</button></td>'
+      +'</tr>';
+  }).join('');
+  updateCopyLabel();
+}
+
+/* ---- table interactions (delegated) ---- */
+$('#results').addEventListener('input', function(e){
+  var cell = e.target.closest('.cell'); if(!cell) return;
+  var td = cell.closest('td'); var i = +td.dataset.i, f = td.dataset.f;
+  rows[i].data[f] = cell.textContent;
+  td.classList.add('fixed');
+});
+$('#results').addEventListener('click', function(e){
+  var chk = e.target.closest('[data-chk]');
+  if(chk){ var i=+chk.dataset.chk; rows[i].checked=!rows[i].checked; chk.classList.toggle('on',rows[i].checked); updateCopyLabel(); return; }
+  var del = e.target.closest('[data-del]');
+  if(del){ rows.splice(+del.dataset.del,1); render(); }
+});
+
+function checkedRows(){ return rows.filter(function(r){ return r.checked; }); }
+function updateCopyLabel(){
+  var n = checkedRows().length;
+  $('#copy-label').textContent = 'Copy ' + n + ' row' + (n===1?'':'s') + ' → Import';
+}
+
+/* ---- copy as 16-col TSV (sheet order; col16 swatch_color blank -> derived on import) ---- */
+$('#copyBtn').addEventListener('click', function(){
+  var lines = checkedRows().map(function(r){
+    var d = r.data;
+    return [ d.brand_name, d.product_name, d.area_usage, d.shade_number, d.shade_name,
+             d.expiration_date, d.manufacture_date, "", "", d.barcode, "active", "", "", "", d.notes, "" ]
+      .map(function(v){ return String(v).replace(/\t/g," ").replace(/\n/g," "); }).join("\t");
+  });
+  var tsv = lines.join("\n");
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(tsv).then(function(){ toast('Copied '+lines.length+' rows — paste into Import'); })
+      .catch(function(){ window.prompt('Copy your rows:', tsv); });
+  } else { window.prompt('Copy your rows:', tsv); }
+});
+
+var tt;
+function toast(msg){ $('#toast-text').textContent=msg; $('#toast').classList.add('show'); clearTimeout(tt); tt=setTimeout(function(){ $('#toast').classList.remove('show'); }, 2400); }
 </script>
 </body>
 </html>

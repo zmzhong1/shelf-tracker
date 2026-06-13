@@ -15,7 +15,7 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const SRC = path.join(ROOT, 'apps-script', 'index.html');
-const OUT = path.join(ROOT, 'apps-script', 'preview.html');
+const OUT = path.join(ROOT, 'preview.html');   // kept out of apps-script/ so `clasp push` only sees real GAS files
 const SNAP = path.join(ROOT, 'data', 'inventory-snapshot-2026-06-11.json');
 
 const html = fs.readFileSync(SRC, 'utf8');

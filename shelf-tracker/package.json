@@ -1,0 +1,18 @@
+{
+  "name": "shelf-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Personal K-beauty inventory app — Seoul Glass UI on Google Apps Script + Google Sheet",
+  "scripts": {
+    "preview": "node tools/build-preview.js",
+    "check": "node tools/build-preview.js",
+    "push": "clasp push",
+    "pull": "clasp pull",
+    "open": "clasp open",
+    "deploy": "clasp deploy --description \"shelf-tracker\"",
+    "logs": "clasp logs"
+  },
+  "devDependencies": {
+    "@google/clasp": "^2.4.2"
+  }
+}
