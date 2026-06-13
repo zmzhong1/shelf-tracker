@@ -58,19 +58,20 @@ Open `scanner/shelf-scanner.html` as a Claude artifact (Ming publishes it; she o
 
 ```
 shelf-tracker/
-├── README.md
-├── apps-script/
-│   ├── Code.gs          # backend (bound script): items + haul tab
-│   ├── index.html       # Seoul Glass tracker UI (List/Add/Scan/Import/Catalog/Detail)
-│   └── preview.html     # generated browser preview (gitignored — regenerate any time)
+├── README.md  ·  SETUP.md  ·  package.json
+├── apps-script/             # ← clasp rootDir (only these push to GAS)
+│   ├── Code.gs              # backend (bound script): items + haul tab
+│   ├── index.html           # Seoul Glass tracker UI (List/Add/Scan/Import/Catalog/Detail)
+│   └── appsscript.json      # GAS manifest (V8, web app: execute as Me / access Only myself)
 ├── tools/
-│   └── build-preview.js # syntax-checks index.html + builds preview.html with mock data
+│   └── build-preview.js     # syntax-checks index.html + builds preview.html with mock data
 ├── scanner/
-│   └── shelf-scanner.html   # Claude-vision artifact (still v0 styling)
+│   └── shelf-scanner.html   # Claude-vision artifact (Seoul Glass)
+├── preview.html             # generated browser preview (gitignored — regenerate any time)
 └── makeup-shelf-check.html  # original catalog — superseded by the in-app Catalog tab
 ```
 
-Preview the UI in a browser without deploying: `node tools/build-preview.js`, then open `apps-script/preview.html` (or serve the folder and visit `/preview.html`). It runs the real UI against her inventory snapshot via a mock `google.script.run`; the shipped `index.html` is never modified.
+Preview the UI in a browser without deploying: `node tools/build-preview.js` (or `npm run preview`), then open `preview.html` (or serve the folder and visit `/preview.html`). It runs the real UI against her inventory snapshot via a mock `google.script.run`; the shipped `index.html` is never modified. Push-to-deploy with clasp is documented in [`SETUP.md`](SETUP.md).
 
 GitHub-backed via [clasp](https://github.com/google/clasp) if you want push-to-deploy: `clasp clone <scriptId>` after step 2, commit this repo, `clasp push` on changes.
 

@@ -11,7 +11,7 @@ node_modules/
 
 # browser-QA scratch + generated preview (regenerate: node tools/build-preview.js)
 .playwright-cli/
-shelf-tracker/apps-script/preview.html
+shelf-tracker/preview.html
 
 # Claude Design export artifact
 .thumbnail
