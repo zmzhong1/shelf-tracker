@@ -77,7 +77,6 @@ GitHub-backed via [clasp](https://github.com/google/clasp) if you want push-to-d
 
 ## Roadmap
 
-- ✅ v1 (2026-06-13) — Seoul Glass reskin + Catalog/Insights/Korea-Haul merged into the Tracker, duplicate guard, swatch smears (P1–P6). See `docs/decisions.md`.
-- v1.1 — reskin `scanner/shelf-scanner.html` to Seoul Glass (deferred from this session).
-- v1.2 — deprecate `makeup-shelf-check.html` once Catalog-tab parity is confirmed.
-- v1.3 — multi-user template: blank sheet copy + setup guide.
+- ✅ v1 (2026-06-13) — Seoul Glass reskin; Catalog/Insights/Korea-Haul merged into the Tracker; duplicate guard; swatch smears; photocard PNG export; Scanner reskinned to Seoul Glass; GitHub-backed + clasp; multi-user `SETUP.md`. **P1–P7 addressed** — see `docs/decisions.md`.
+- v1.2 — deprecate `makeup-shelf-check.html` once Catalog-tab parity is confirmed in daily use.
+- v1.3 — duplicate-guard tuning + photocard share sheet on iOS (Web Share API where available).

@@ -67,9 +67,12 @@ Futuristic = dewy, luminous, precise. NOT cyberpunk neon-on-black, NOT generic p
 - ✅ **P3 — Duplicate guard on add/import** (2026-06-13). Client-side brand+shade_number (fallback brand+product+shade_name); "You own this … Save anyway / Cancel" bottom sheet.
 - ✅ **P4 — Search-first home** (2026-06-13). List opens on a glass search pill above filter chips.
 - ✅ **P6 — Haul budget** (2026-06-13). Live ₩ subtotal (spent / left) over the persisted haul tab. (FX-rate field not added — flagged as out-of-scope unless she asks.)
-- **P5 — Photocard export:** render any product card to PNG (canvas) for sharing. *(open)*
-- **P7 — Multi-user template:** blank-sheet template + SETUP.md so friends copy & self-deploy. *(open)*
-- **Follow-up — reskin `scanner/shelf-scanner.html` to Seoul Glass** (deferred from the 2026-06-13 session; Tracker-only by request).
+- ✅ **P5 — Photocard export** (2026-06-13). Detail hero → download button → `drawCard()` renders the swatch card to a PNG via Canvas 2D (no libraries). Exposed as `window.drawCard` for QA.
+- ✅ **P7 — Multi-user template** (2026-06-13). `SETUP.md` (deploy + clasp + multi-user); a blank Sheet is the template since `ensureSchema` builds 16 cols + `haul` tab on first run.
+- ✅ **Scanner reskin** (2026-06-13). `scanner/shelf-scanner.html` ported to Seoul Glass; keyless Claude-vision + 16-col TSV preserved.
+- ✅ **GitHub-backed + clasp** (2026-06-13). Private repo github.com/zmzhong1/shelf-tracker; `package.json` + `appsscript.json` + `.clasp.json.example` for `clasp push`.
+
+All P1–P7 addressed. Remaining: formally deprecate `makeup-shelf-check.html` once Catalog-tab parity is confirmed in daily use.
 
 ## Testing checklist (every PR)
 
