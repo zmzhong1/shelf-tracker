@@ -336,6 +336,12 @@ body.preview .app{position:relative;inset:auto;width:393px;height:852px;max-widt
 #d_fav .dstar svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;vertical-align:-3px}
 .btn.iri #d_fav,.btn.iri .dstar svg{fill:currentColor}
 #d_fav.btn.iri .dstar svg{fill:#1A1518;stroke:#1A1518}
+/* auth gate */
+.authgate{position:absolute;inset:0;z-index:200;display:none;align-items:center;justify-content:center;padding:26px;background:var(--sg-pearl)}
+.authgate.show{display:flex}
+.gate-card{display:flex;flex-direction:column;gap:16px;align-items:center;text-align:center;max-width:320px;width:100%}
+.gate-logo{font-size:30px;font-weight:800;letter-spacing:-.02em}
+.gate-msg{font-size:15px;color:var(--sg-ink-70);line-height:1.5;margin:0}
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 @media (prefers-color-scheme:dark){body:not(.force-light) .nothing{}}
@@ -461,11 +467,13 @@ body.preview .app{position:relative;inset:auto;width:393px;height:852px;max-widt
   <div id="toast" class="toast"></div>
   <div id="scrim" class="scrim"></div>
   <div id="sheet" class="sheet"><div class="sheet__card" id="sheet-body"></div></div>
+  <div id="authgate" class="authgate show"><div id="gate-body"></div></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script>
 "use strict";
 /* PREFILL: from URL query (?brand=&product=&sn=&shade=&barcode=) — optional. */
@@ -482,6 +490,8 @@ firebase.initializeApp({
   appId: "1:816599917009:web:270aa215b139f7ae0d80f0"
 });
 var DB = firebase.firestore();
+var AUTH = firebase.auth();
+var GOOGLE = new firebase.auth.GoogleAuthProvider();
 var ITEMS = DB.collection('items'), HAULC = DB.collection('haul');
 function TODAY(){ var d=new Date(); return M[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear(); }
 
@@ -618,7 +628,12 @@ var HAUL = [];
 var listFilter = 'all', listQuery = '', catView = 'grid', catFilter = 'all';
 
 function reloadBoot(after){
-  RUN('getBootstrap', function(d){ BOOT = d || BOOT; afterBoot(); if(after) after(); });
+  RUN('getBootstrap', function(d){ BOOT = d || BOOT; afterBoot(); if(after) after(); },
+    function(e){
+      var denied = e && (e.code==='permission-denied' || /permission|insufficient/i.test(e.message||''));
+      if(denied){ showGate('denied', AUTH.currentUser && AUTH.currentUser.email); }
+      else { toast('Could not load your shelf'); }
+    });
 }
 function afterBoot(){
   $('list-count').textContent = BOOT.count + ' items';
@@ -1180,12 +1195,36 @@ function applyPrefill(){
   if(p.brand||p.product||p.sn||p.barcode) go('add');
 }
 
+/* ---------------- auth gate ---------------- */
+function showGate(mode, email){
+  var g=$('authgate'); if(!g) return; g.classList.add('show');
+  if(mode==='denied'){
+    $('gate-body').innerHTML='<div class="gate-card"><div class="gate-logo">Shelf Tracker</div>'
+      +'<p class="gate-msg">'+(email?esc(email):'This account')+' isn’t on the allow-list for this shelf.</p>'
+      +'<button class="btn primary full" id="gate-signout">Use a different account</button></div>';
+    $('gate-signout').onclick=function(){ AUTH.signOut(); };
+  } else {
+    $('gate-body').innerHTML='<div class="gate-card"><div class="gate-logo">Shelf Tracker</div>'
+      +'<p class="gate-msg">Private shelf — sign in to continue.</p>'
+      +'<button class="btn iri full" id="gate-signin">Sign in with Google</button></div>';
+    $('gate-signin').onclick=function(){ AUTH.signInWithRedirect(GOOGLE); };
+  }
+}
+function hideGate(){ var g=$('authgate'); if(g) g.classList.remove('show'); }
+function wireAuth(){
+  showGate('signin'); // paint the gate immediately; the listener swaps it if already signed in
+  AUTH.onAuthStateChanged(function(user){
+    if(user){ hideGate(); reloadBoot(); }
+    else { showGate('signin'); }
+  });
+}
+
 /* ---------------- boot ---------------- */
 document.addEventListener('DOMContentLoaded', function(){
   buildTabbar(); buildAreaChips();
   wireDark(); wireList(); wireDetail(); wireAdd(); wireScan(); wireImport(); wireCatalog();
   applyPrefill();
-  reloadBoot();
+  wireAuth();
 });
 </script>
 </body>

@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shelf Tracker — for Kristina</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spline+Sans+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --pearl:#F7F4F5; --pearl2:#EFEAEC; --ink:#1A1518; --ink70:rgba(26,21,24,.7); --ink45:rgba(26,21,24,.45);
+    --line:rgba(26,21,24,.1); --accent:#FF4D62; --accent-ink:#E11D38;
+    --iri:linear-gradient(118deg,#9DB8FF,#FFB7C9); --fresh:#3E7D5C; --soon:#A85F12;
+    --glass:rgba(255,255,255,.72); --r:20px;
+    --sans:"Pretendard","PingFang TC","Noto Sans TC",-apple-system,system-ui,sans-serif;
+    --mono:"Spline Sans Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.6;
+    background:radial-gradient(120% 60% at 8% -8%,#FBEFF2 0,transparent 46%),radial-gradient(120% 70% at 100% 0%,#EEF1FB 0,transparent 42%),var(--pearl);}
+  .wrap{max-width:780px;margin:0 auto;padding:40px 22px 80px}
+  header{margin-bottom:34px}
+  .kicker{font-family:var(--mono);font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink);margin:0 0 8px}
+  h1{font-size:38px;font-weight:800;letter-spacing:-.02em;margin:0 0 10px;line-height:1.1}
+  .sub{font-size:17px;color:var(--ink70);margin:0;max-width:60ch}
+  h2{font-size:22px;font-weight:800;letter-spacing:-.01em;margin:38px 0 14px;display:flex;align-items:center;gap:10px}
+  h2 .n{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--iri);color:#1A1518;font-size:15px;font-weight:800;flex:none}
+  h3{font-size:15px;font-weight:700;margin:18px 0 8px}
+  p{margin:0 0 12px}
+  .card{background:var(--glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.6);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 12px 30px -16px rgba(26,21,24,.25);border-radius:var(--r);padding:20px 22px;margin:14px 0}
+  .callout{border-left:none;background:rgba(255,77,98,.08);border:1px solid rgba(255,77,98,.22);border-radius:16px;padding:16px 18px;margin:14px 0;font-size:15px}
+  .callout b{color:var(--accent-ink)}
+  /* timeline */
+  .tl{list-style:none;margin:0;padding:0;position:relative}
+  .tl:before{content:"";position:absolute;left:13px;top:6px;bottom:6px;width:2px;background:linear-gradient(var(--accent),#9DB8FF)}
+  .tl li{position:relative;padding:0 0 18px 42px}
+  .tl li:before{content:"";position:absolute;left:6px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid var(--accent);box-shadow:0 0 0 4px var(--pearl)}
+  .tl b{display:block;font-size:15.5px}
+  .tl span{font-size:14.5px;color:var(--ink70)}
+  /* prompt box */
+  .promptbox{position:relative;background:#1A1518;color:#F4EEF1;border-radius:16px;padding:18px 18px 16px;margin:12px 0;font-family:var(--mono);font-size:13px;line-height:1.65;white-space:pre-wrap;overflow-x:auto}
+  .copybtn{position:absolute;top:12px;right:12px;background:var(--iri);color:#1A1518;border:0;border-radius:99px;font-family:var(--sans);font-size:12.5px;font-weight:700;padding:7px 14px;cursor:pointer}
+  .copybtn:active{transform:scale(.96)}
+  ul.clean{margin:6px 0 12px;padding-left:0;list-style:none}
+  ul.clean li{position:relative;padding:5px 0 5px 26px;font-size:15px}
+  ul.clean li:before{content:"";position:absolute;left:4px;top:12px;width:7px;height:7px;border-radius:50%;background:var(--accent)}
+  ol.steps{margin:6px 0 12px;padding-left:22px}
+  ol.steps li{padding:4px 0;font-size:15px}
+  code{font-family:var(--mono);font-size:.88em;background:var(--pearl2);padding:2px 6px;border-radius:6px}
+  .pill{display:inline-block;font-family:var(--mono);font-size:12px;background:var(--pearl2);border-radius:99px;padding:3px 10px;margin:2px 4px 2px 0}
+  a{color:var(--accent-ink);font-weight:600;text-decoration:none;border-bottom:1.5px solid rgba(225,29,56,.3)}
+  a:hover{border-bottom-color:var(--accent-ink)}
+  .links{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+  .links a{display:flex;flex-direction:column;gap:2px;flex:1;min-width:200px;background:var(--glass);border:1px solid rgba(255,255,255,.6);border-radius:14px;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,.6)}
+  .links a .lbl{font-size:12px;color:var(--ink45);font-weight:600}
+  .links a .val{font-family:var(--mono);font-size:13.5px;color:var(--ink);word-break:break-all}
+  footer{margin-top:40px;text-align:center;color:var(--ink45);font-size:13px}
+  .gloss{background:linear-gradient(118deg,#E11D38,#7d6cff);-webkit-background-clip:text;background-clip:text;color:transparent}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="kicker">Shelf Tracker · a little handoff</p>
+  <h1>Hi Kristina — <span class="gloss">here's your shelf app</span>, and how it got here.</h1>
+  <p class="sub">Ming and his coding assistant (Claude Code) spent a session turning your makeup list into a real, private app you can open on your phone. This page is the short story of how — and what you'd hand your own Claude Code if you ever want to change it yourself.</p>
+</header>
+
+<div class="links">
+  <a href="https://shelf-tracker-kristina.web.app"><span class="lbl">▶ Your live app (sign in with Google)</span><span class="val">shelf-tracker-kristina.web.app</span></a>
+</div>
+
+<h2><span class="n">1</span> How this started</h2>
+<div class="card">
+  <p>Ming sat down to pick up where he'd left off and asked one simple thing: <i>"where's the link to the website?"</i></p>
+  <p>The honest answer was the spark for everything that followed:</p>
+  <div class="callout">There <b>was no link yet.</b> Your shelf existed as a design and a Google-Sheets prototype, but it had never actually been put online — nothing you could tap on your phone. So we decided to fix that, and make it nicer while we were at it.</div>
+  <p>At that point the app was: your <b>201 items across 51 brands</b> (lots of blush 💗), a "Seoul Glass" Korean-cute design, and a back-end wired to a Google Sheet.</p>
+</div>
+
+<h2><span class="n">2</span> How we built it together</h2>
+<p>It went one decision at a time — Claude proposed options, Ming picked, Claude built it and showed a screenshot, repeat:</p>
+<div class="card">
+  <ul class="tl">
+    <li><b>The shelf was one long scroll</b><span>201 items in a single list. You wanted it friendlier to browse.</span></li>
+    <li><b>We folded it into categories</b><span>Now it opens as a tidy index — Cheek, Lip, Eye, Highlighter… each collapsed until you tap it. Anything expiring is pinned to the top.</span></li>
+    <li><b>Added favorites ⭐ and notes</b><span>Star your holy-grails, and jot a note on any item (shade match, repurchase, who it suits).</span></li>
+    <li><b>Made it bright & rosy</b><span>It was opening in dark mode on Ming's phone — we set the bright "glass skin" look as the default (dark is still one tap away).</span></li>
+    <li><b>Put it on the cloud (Firebase)</b><span>Moved off the Google Sheet onto a real app with its own web address. This is the moment it got a link.</span></li>
+    <li><b>Made the buttons feel nice</b><span>The bottom menu now presses with a little spring, a glow behind the active tab, and a soft buzz.</span></li>
+    <li><b>Locked the door 🔒</b><span>Added Google sign-in so only you and Ming can open it — done before sharing any of the code.</span></li>
+  </ul>
+</div>
+
+<h2><span class="n">3</span> Talking to your own Claude Code</h2>
+<p>You don't need any of this just to <i>use</i> the app — open the link, sign in, done. But if you ever want to <b>change</b> it yourself with Claude Code, here's everything to hand it.</p>
+
+<h3>① Paste this into Claude Code to give it the full picture</h3>
+<div class="promptbox" id="prompt"><button class="copybtn" onclick="cp()">Copy</button>I'm working on "Shelf Tracker" — my personal makeup-inventory app. It's already built and live; help me change or extend it.
+
+• Live app:  https://shelf-tracker-kristina.web.app
+• Repo:      https://github.com/zmzhong1/shelf-tracker   (the whole app is web/index.html)
+• Firebase:  project "shelf-tracker-kristina" — Firestore = database, Hosting = the website, Google sign-in = the lock
+
+Before editing, know this:
+- web/index.html is ONE self-contained file: plain HTML/CSS/JS + the Firebase "compat" SDK from gstatic. No build step, no React.
+- Data lives in Firestore collections `items` (the shelf) and `haul` (Korea shopping list). Each item has the usual fields plus `favorite` and `notes`.
+- The design is "Seoul Glass": pearl background, rosy + iridescent accents, Pretendard font, light by default with a dark toggle.
+- History is in docs/decisions.md; the redesign spec is in docs/superpowers/specs/.
+- To publish a change:  npx firebase deploy --only hosting   (add --only firestore if you touch firestore.rules)
+
+What I want to do: [describe your change — e.g. "add a 'finished' button to items", "make the favorite star gold", "show items expiring this month at the very top"].</div>
+
+<h3>② Access you'll need from Ming (ask him once)</h3>
+<ul class="clean">
+  <li><b>Sign-in:</b> your Google email is already on the app's allow-list — if it ever says "not on the allow-list," send Ming the exact Gmail you're using.</li>
+  <li><b>To edit the code:</b> ask Ming to add you as a collaborator on the GitHub repo (or to make it public).</li>
+  <li><b>To publish changes yourself:</b> ask Ming to add you to the Firebase project (Firebase Console → Project settings → Users and permissions).</li>
+</ul>
+
+<h3>③ One-time setup on your computer</h3>
+<ol class="steps">
+  <li>Install <b>Claude Code</b>, <b>Node.js</b>, and <b>Git</b>.</li>
+  <li>Get the code: <code>git clone https://github.com/zmzhong1/shelf-tracker.git</code></li>
+  <li>Go into it: <code>cd shelf-tracker</code></li>
+  <li>Connect Firebase: <code>npx firebase login</code> (sign in with the Google account Ming added)</li>
+  <li>Open that folder in Claude Code and paste the prompt from ① — then describe what you want.</li>
+</ol>
+<p style="font-size:14px;color:var(--ink70)">On Windows the commands are the same — just run them in <b>PowerShell</b>.</p>
+
+<h3>Things you could ask it for</h3>
+<div>
+  <span class="pill">"add a 'finished / used up' mark"</span>
+  <span class="pill">"make the favorite star gold"</span>
+  <span class="pill">"group Lip into matte vs glossy"</span>
+  <span class="pill">"email me what's expiring each week"</span>
+  <span class="pill">"add a column for where I bought it"</span>
+</div>
+
+<h2><span class="n">+</span> The three addresses, in one place</h2>
+<div class="links">
+  <a href="https://shelf-tracker-kristina.web.app"><span class="lbl">The app</span><span class="val">shelf-tracker-kristina.web.app</span></a>
+  <a href="https://github.com/zmzhong1/shelf-tracker"><span class="lbl">The code</span><span class="val">github.com/zmzhong1/shelf-tracker</span></a>
+  <a href="https://console.firebase.google.com/project/shelf-tracker-kristina/overview"><span class="lbl">The back-end (Firebase)</span><span class="val">console.firebase.google.com → shelf-tracker-kristina</span></a>
+</div>
+
+<footer>Made with Ming + Claude Code · your shelf, 201 items and counting 💄</footer>
+
+</div>
+<script>
+function cp(){
+  var t=document.getElementById('prompt').innerText.replace(/^Copy\s*/,'').trim();
+  navigator.clipboard.writeText(t).then(function(){
+    var b=document.querySelector('.copybtn'); var o=b.textContent; b.textContent='Copied ✓';
+    setTimeout(function(){ b.textContent=o; }, 1600);
+  });
+}
+</script>
+</body>
+</html>
