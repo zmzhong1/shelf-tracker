@@ -792,7 +792,10 @@ function openDetail(row){
     + '<div class="detail__back" data-back>'+I.back+'</div>'
     + '<div class="pc__in"><div class="pc__top"><span></span><span class="gbadge '+tone+'">'+esc(m.badge)+'</span></div>'
     + '<div class="pc__meta"><div class="pc__brand">'+esc(m.brand)+'</div><div class="pc__name">'+esc(m.name)+'</div><div class="pc__code" style="font-size:38px">'+esc(m.code||m.shade||'—')+'</div></div></div></div>'
-    + '<button class="btn '+(m.fav?'iri':'ghost')+' full" id="d_fav"><span class="dstar">'+I.star+'</span>'+(m.fav?'Favorited':'Add to favorites')+'</button>'
+    + '<div class="btn-row">'
+    + '<button class="btn '+(m.fav?'iri':'ghost')+'" id="d_fav" style="flex:1.5"><span class="dstar">'+I.star+'</span>'+(m.fav?'Favorited':'Favorite')+'</button>'
+    + '<button class="btn ghost" data-save="'+esc(m.row)+'" style="flex:1">Save card</button>'
+    + '</div>'
     + (owned
         ? '<div class="owned-ribbon">'+I.chk+'<span>On your shelf</span></div>'
         : '<div class="owned-ribbon" style="background:var(--sg-ink-12);color:var(--sg-ink-45)">Retired — kept in your history</div>')
@@ -814,6 +817,7 @@ function kv(k,v,mono){ return '<div class="kv"><span class="k">'+esc(k)+'</span>
 function wireDetail(){
   $('detail-body').addEventListener('click', function(e){
     if(e.target.closest('[data-back]')){ go('list'); return; }
+    var sv=e.target.closest('[data-save]'); if(sv){ exportCard(sv.dataset.save); return; }
     var op=e.target.closest('[data-open]'); if(op){ doOpened(op.dataset.open); go('list'); return; }
     if(e.target.closest('#d_fav')){
       var r=findRow(curDetail), nv=!(r&&r.fav);
@@ -826,6 +830,50 @@ function wireDetail(){
         function(){ btn.disabled=false; toast('Could not save note'); }, curDetail, txt);
       return;
     }
+  });
+}
+
+/* ---------- PHOTOCARD EXPORT — render a card to PNG, no libraries ---------- */
+function roundRectPath(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+function fitFont(c,text,family,weight,maxW,startPx){ var px=startPx; c.font=weight+' '+px+'px '+family; while(px>26 && c.measureText(text).width>maxW){ px-=4; c.font=weight+' '+px+'px '+family; } return px; }
+function clip1(c,text,maxW){ text=String(text||''); if(c.measureText(text).width<=maxW) return text; while(text.length>1 && c.measureText(text+'…').width>maxW) text=text.slice(0,-1); return text+'…'; }
+async function drawCard(m){
+  var W=900,H=1200,R=48,P=56;
+  var cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+  var c=cv.getContext('2d');
+  try{ if(document.fonts){ await document.fonts.load('700 30px Pretendard'); await document.fonts.load('600 120px "Spline Sans Mono"'); await document.fonts.ready; } }catch(e){}
+  roundRectPath(c,0,0,W,H,R); c.clip();
+  var g=c.createLinearGradient(0,0,W*0.7,H); g.addColorStop(0,m.s1); g.addColorStop(1,m.s2); c.fillStyle=g; c.fillRect(0,0,W,H);
+  var rg=c.createRadialGradient(W*0.82,H*0.96,0,W*0.82,H*0.96,W*1.1); rg.addColorStop(0,m.sdeep); rg.addColorStop(.64,'rgba(0,0,0,0)'); c.fillStyle=rg; c.fillRect(0,0,W,H);
+  var hg=c.createRadialGradient(W*0.28,H*0.16,0,W*0.28,H*0.16,W*0.85); hg.addColorStop(0,'rgba(255,255,255,.6)'); hg.addColorStop(.5,'rgba(255,255,255,0)'); c.fillStyle=hg; c.fillRect(0,0,W,H);
+  var sg=c.createLinearGradient(0,H,0,0); sg.addColorStop(0,'rgba(20,15,18,.66)'); sg.addColorStop(.34,'rgba(20,15,18,.18)'); sg.addColorStop(.56,'rgba(20,15,18,0)'); c.fillStyle=sg; c.fillRect(0,0,W,H);
+  var tg=c.createLinearGradient(0,0,0,H*0.3); tg.addColorStop(0,'rgba(20,15,18,.32)'); tg.addColorStop(1,'rgba(20,15,18,0)'); c.fillStyle=tg; c.fillRect(0,0,W,H);
+  c.fillStyle='#fff'; c.textAlign='left'; c.textBaseline='alphabetic';
+  c.shadowColor='rgba(0,0,0,.35)'; c.shadowBlur=16; c.shadowOffsetY=2;
+  c.font='700 30px Pretendard, sans-serif'; c.fillText(clip1(c,m.brand,W-2*P-180), P, 84);
+  c.shadowColor='transparent';
+  var col={fresh:'#3E7D5C',soon:'#A85F12',expired:'#B8323E',retired:'#7a7077',none:'#7a7077'}[m.status]||'#7a7077';
+  c.font='700 24px Pretendard, sans-serif'; var bw=c.measureText(m.badge).width, ph=48, pw=bw+58, bx=W-P-pw, by=44;
+  c.fillStyle='rgba(255,255,255,.9)'; roundRectPath(c,bx,by,pw,ph,ph/2); c.fill();
+  c.fillStyle=col; c.beginPath(); c.arc(bx+26,by+ph/2,6,0,Math.PI*2); c.fill();
+  c.fillStyle=col; c.fillText(m.badge,bx+42,by+ph/2+8);
+  c.fillStyle='#fff'; c.shadowColor='rgba(0,0,0,.4)'; c.shadowBlur=22; c.shadowOffsetY=2;
+  c.font='600 34px Pretendard, sans-serif'; c.fillText(clip1(c,m.name,W-2*P), P, H-228);
+  var code=m.code||m.shade||''; fitFont(c,code,'"Spline Sans Mono", monospace','600',W-2*P,128); c.fillText(code, P, H-112);
+  c.globalAlpha=.92; c.font='400 28px Pretendard, sans-serif'; c.fillText(clip1(c,m.shade,W-2*P), P, H-66); c.globalAlpha=1;
+  c.shadowColor='transparent';
+  return cv;
+}
+function exportCard(row){
+  var r=findRow(row); if(!r){ return; }
+  drawCard(model(r)).then(function(cv){
+    var m=model(r), name=((m.brand||'card')+'-'+(m.code||m.shade||'')).replace(/[^\w.-]+/g,'_').replace(/_+$/,'');
+    try{
+      var url=cv.toDataURL('image/png');
+      var a=document.createElement('a'); a.href=url; a.download=name+'.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      toast('Saved photocard ✓');
+    }catch(e){ toast('Export failed: '+(e&&e.message)); }
   });
 }
 
