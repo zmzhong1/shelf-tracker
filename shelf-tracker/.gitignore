@@ -3,3 +3,7 @@ node_modules/
 .DS_Store
 .playwright-cli/
 apps-script/preview.html
+.firebase/
+*-debug.log
+firebase-debug.log
+firestore-debug.log
