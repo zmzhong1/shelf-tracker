@@ -1,5 +1,10 @@
 // One-time seed: import the 2026-06-11 snapshot into Firestore.
-// Uses the Firebase Web SDK against the open security rules (no service account needed).
+// NOTE: Firestore is now locked to a signed-in email allow-list, so this
+// UNAUTHENTICATED script will be DENIED as-is. To re-seed, either:
+//   (a) temporarily set firestore.rules to `allow read, write: if true`,
+//       run `npx firebase deploy --only firestore:rules`, run this script,
+//       then restore the allow-list rules and redeploy; or
+//   (b) switch this script to the Firebase Admin SDK with a service-account key.
 // Run: npm i firebase && node scripts/seed-firestore.mjs   (aborts if `items` already has docs)
 import { readFileSync } from 'node:fs';
 import { initializeApp } from 'firebase/app';
