@@ -248,6 +248,8 @@ body.preview .app{position:relative;inset:auto;width:393px;height:852px;max-widt
 .vf-guide .br{bottom:0;right:0;border-left:0;border-top:0;border-radius:0 0 10px 0}
 .vf-hint{position:absolute;bottom:22px;left:0;right:0;text-align:center;color:rgba(255,255,255,.85);font-size:13px;z-index:3}
 .vf-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
+#reader video{width:100%!important;height:100%!important;object-fit:cover!important}
+#reader{z-index:1}
 .shutter{position:relative;width:70px;height:70px;border-radius:50%;background:#fff;border:4px solid rgba(255,255,255,.4);margin:0 auto;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.3);transition:transform .12s;display:grid;place-items:center}
 .shutter:active{transform:scale(.92)}
 .shutter input{position:absolute;inset:0;opacity:0;cursor:pointer}
@@ -407,19 +409,15 @@ body.preview .app{position:relative;inset:auto;width:393px;height:852px;max-widt
         <div class="screen-head"><h2 class="screen-title">Scan</h2><span class="screen-sub">barcode → prefill</span></div>
         <div class="viewfinder" id="viewfinder">
           <div class="vf-blur"></div>
+          <div id="reader" style="position:absolute;inset:0;display:none;border-radius:22px;overflow:hidden"></div>
           <img class="vf-photo" id="vf-photo" alt="" style="display:none">
           <div class="vf-guide" id="vf-guide"><span class="tl"></span><span class="tr"></span><span class="bl"></span><span class="br"></span></div>
-          <div class="vf-hint" id="vf-hint">Photograph the barcode — fill the frame, flat &amp; well-lit</div>
+          <div class="vf-hint" id="vf-hint">Scan a barcode with the camera — or upload a photo</div>
         </div>
         <div id="scan-result-wrap"></div>
         <p class="hint" id="scan-help">On a hit, Open Beauty Facts prefills brand &amp; product (free database — K-beauty coverage is patchy; a miss just means you type it once). The shade is always yours to confirm.</p>
       </div>
-      <div class="dock" id="scan-dock">
-        <div class="shutter" id="shutter">
-          <svg viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg>
-          <input type="file" id="scanFile" accept="image/*" capture="environment">
-        </div>
-      </div>
+      <div class="dock" id="scan-dock"></div>
     </section>
 
     <!-- IMPORT -->
@@ -670,6 +668,7 @@ function buildTabbar(){
   $('tabbar').addEventListener('click', function(e){ var t=e.target.closest('.tab'); if(t){ if(navigator.vibrate){ try{ navigator.vibrate(9); }catch(_){} } go(t.dataset.go); } });
 }
 function go(name){
+  stopLiveScan();
   $$('.screen').forEach(function(s){ s.classList.toggle('active', s.dataset.screen===name); });
   $$('.tab').forEach(function(t){ t.classList.toggle('on', t.dataset.go===name); });
   if(name==='scan') resetScan();
@@ -986,16 +985,41 @@ function toast(msg, action){
 
 /* ---------------- SCAN ---------------- */
 var scanBusy=false;
+var liveScanner=null, scanHandled=false;
+function scanUploadInput(){ return '<label class="btn ghost" style="flex:1;position:relative;overflow:hidden;cursor:pointer">Upload photo<input type="file" id="scanFile" accept="image/*" style="position:absolute;inset:0;opacity:0"></label>'; }
 function resetScan(){
-  scanBusy=false;
+  scanBusy=false; scanHandled=false; stopLiveScan();
+  $('reader').style.display='none';
   $('vf-photo').style.display='none'; $('vf-guide').style.display='block';
-  $('vf-hint').textContent='Photograph the barcode — fill the frame, flat & well-lit';
+  $('vf-hint').textContent='Scan a barcode with the camera — or upload a photo';
   $('scan-result-wrap').innerHTML='';
-  var dock=$('scan-dock');
-  dock.innerHTML='<div class="shutter" id="shutter">'+
-    '<svg viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg>'+
-    '<input type="file" id="scanFile" accept="image/*" capture="environment"></div>';
+  $('scan-dock').innerHTML='<div class="btn-row"><button class="btn iri" style="flex:1.4" id="scan-cam">Scan barcode</button>'+scanUploadInput()+'</div>';
+  $('scan-cam').onclick=startLiveScan;
   $('scanFile').addEventListener('change', onScanFile);
+}
+function startLiveScan(){
+  if(typeof Html5Qrcode==='undefined'){ toast('Scanner not loaded'); return; }
+  scanHandled=false;
+  $('vf-guide').style.display='none'; $('vf-photo').style.display='none'; $('reader').style.display='block';
+  $('vf-hint').textContent='Point at the barcode…';
+  $('scan-dock').innerHTML='<button class="btn ghost full" id="scan-stop">Stop</button>'; $('scan-stop').onclick=resetScan;
+  var fmts; try{ fmts=[Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,Html5QrcodeSupportedFormats.CODE_128]; }catch(e){}
+  try{ liveScanner=new Html5Qrcode('reader', fmts?{formatsToSupport:fmts}:undefined); }
+  catch(e){ liveScanner=null; toast('Scanner init failed'); resetScan(); return; }
+  liveScanner.start({facingMode:'environment'}, {fps:10, qrbox:{width:250,height:170}},
+    function(text){ onCode(text); }, function(){}
+  ).catch(function(e){
+    liveScanner=null; $('reader').style.display='none'; $('vf-guide').style.display='block'; $('vf-hint').textContent='';
+    $('scan-result-wrap').innerHTML='<div class="scan-result miss"><div class="ic">'+I.spark+'</div><div class="st"><b>Camera unavailable</b><span>'+esc((e&&e.message)||'allow camera access, or use Upload')+'</span></div></div>';
+    $('scan-dock').innerHTML='<div class="btn-row">'+scanUploadInput()+'</div>'; $('scanFile').addEventListener('change', onScanFile);
+  });
+}
+function stopLiveScan(){ if(liveScanner){ var s=liveScanner; liveScanner=null; try{ s.stop().then(function(){ try{s.clear();}catch(e){} }, function(){}); }catch(e){} } }
+function onCode(code){
+  if(scanHandled) return; scanHandled=true;
+  stopLiveScan(); $('reader').style.display='none'; $('vf-hint').textContent='';
+  if(navigator.vibrate){ try{ navigator.vibrate(30); }catch(e){} }
+  RUN('lookupBarcode', function(r){ scanResult(code, r||{found:false}); }, function(){ scanResult(code,{found:false}); }, code);
 }
 async function onScanFile(e){
   var f=e.target.files[0]; if(!f || scanBusy) return;
