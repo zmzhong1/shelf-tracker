@@ -642,7 +642,7 @@ function model(r){
 /* ---------------- state ---------------- */
 var BOOT = { rows:[], brands:[], products:{}, count:0 };
 var HAUL = [];
-var listFilter = 'all', listQuery = '', catView = 'grid', catFilter = 'all';
+var listFilter = 'all', listQuery = '', catView = 'grid', catFilter = 'all', catOpen = {};
 
 function reloadBoot(after){
   RUN('getBootstrap', function(d){ BOOT = d || BOOT; afterBoot(); if(after) after(); },
@@ -699,6 +699,8 @@ function go(name){
 function areaCount(area){ return BOOT.rows.filter(function(r){ return (r.a||'').indexOf(area)>-1; }).length; }
 var CAT_ORDER = ['Cheek','Lip','Eye','Highlighter','Contour','Concealer','Base','Powder','Skin prep'];
 var expanded = (function(){ try{ return JSON.parse(localStorage.getItem('st.cats')||'{}')||{}; }catch(e){ return {}; } })();
+var secShowAll = {};
+var SEC_CAP = 16;
 function saveExpanded(){ try{ localStorage.setItem('st.cats', JSON.stringify(expanded)); }catch(e){} }
 function catsFor(r){
   var a=(r.a||'').toLowerCase(), out=[];
@@ -730,12 +732,15 @@ function sectionHTML(sec){
   var open = !!expanded[sec.key];
   var ms = sec.items.map(model).sort(function(a,b){ return STORDER[a.status]-STORDER[b.status]; });
   var headCls = sec.tone==='expired'?' exp':(sec.tone==='soon'?' soon':(sec.tone==='fav'?' fav':''));
+  var all = !!secShowAll[sec.key], shown = all ? ms : ms.slice(0, SEC_CAP);
+  var body = shown.map(rowHTML).join('');
+  if(ms.length > SEC_CAP && !all) body += '<button class="btn ghost full" data-showall="'+esc(sec.key)+'" style="height:44px;font-size:13px">Show all '+ms.length+'</button>';
   return '<div class="cat-sec'+(open?' open':'')+'" data-cat="'+esc(sec.key)+'">'
     + '<div class="cat-head'+headCls+'" data-cathead><span class="chev">'+I.chev+'</span>'
     + '<span class="cn">'+esc(sec.label)+'</span>'
     + (sec.flag?'<span class="cflag" aria-label="has expired"></span>':'')
     + '<span class="cc">'+sec.count+'</span></div>'
-    + '<div class="cat-body">'+ms.map(rowHTML).join('')+'</div></div>';
+    + '<div class="cat-body">'+body+'</div></div>';
 }
 function renderList(){
   var q=listQuery.trim().toLowerCase(), host=$('list-rows');
@@ -775,6 +780,7 @@ function wireList(){
   rowsEl.addEventListener('click', function(e){
     var head=e.target.closest('[data-cathead]');
     if(head){ var sec=head.closest('.cat-sec'), k=sec.dataset.cat, nowOpen=!sec.classList.contains('open'); expanded[k]=nowOpen; sec.classList.toggle('open', nowOpen); saveExpanded(); return; }
+    var sa=e.target.closest('[data-showall]'); if(sa){ secShowAll[sa.dataset.showall]=true; renderList(); return; }
     var star=e.target.closest('.starbtn');
     if(star){ e.stopPropagation(); toggleFav(star.closest('.row').dataset.row); return; }
     var act=e.target.closest('.mini-act');
@@ -1218,11 +1224,13 @@ function renderCatalog(){
   rows.forEach(function(r){ (groups[r.b]=groups[r.b]||[]).push(r); });
   var brands=Object.keys(groups).sort(function(a,b){ return a.localeCompare(b,undefined,{sensitivity:'base'}); });
   var html=brands.map(function(b){
-    var ms=groups[b].map(model);
-    return '<div class="brand-head"><span class="bn">'+esc(b)+'</span><span class="ct">'+ms.length+'</span></div>'
-      +'<div class="grid">'+ms.map(cardHTML).join('')+'</div>';
+    var ms=groups[b].map(model), open=!!catOpen[b];
+    return '<div class="cat-sec'+(open?' open':'')+'" data-brand="'+esc(b)+'">'
+      +'<div class="cat-head" data-brandhead><span class="chev">'+I.chev+'</span><span class="cn">'+esc(b)+'</span><span class="cc">'+ms.length+'</span></div>'
+      +'<div class="cat-body"><div class="grid">'+ms.map(cardHTML).join('')+'</div></div></div>';
   }).join('');
   $('cat-grid-wrap').innerHTML = html || '<div class="empty">No items in this filter.</div>';
+  $('cat-sub').textContent = BOOT.count + ' · ' + brands.length + ' brands';
 }
 function wireCatalog(){
   $('cat-seg').addEventListener('click', function(e){
@@ -1237,7 +1245,11 @@ function wireCatalog(){
     var c=e.target.closest('.chip'); if(!c) return;
     catFilter=c.dataset.f; $$('#cat-chips .chip').forEach(function(x){ x.classList.toggle('on', x===c); }); renderCatalog();
   });
-  $('cat-grid-wrap').addEventListener('click', function(e){ var c=e.target.closest('.pc'); if(c) openDetail(c.dataset.row); });
+  $('cat-grid-wrap').addEventListener('click', function(e){
+    var head=e.target.closest('[data-brandhead]');
+    if(head){ var sec=head.closest('.cat-sec'), b=sec.dataset.brand, nowOpen=!sec.classList.contains('open'); catOpen[b]=nowOpen; sec.classList.toggle('open', nowOpen); return; }
+    var c=e.target.closest('.pc'); if(c) openDetail(c.dataset.row);
+  });
 }
 
 /* ---------------- CATALOG: insights ---------------- */
