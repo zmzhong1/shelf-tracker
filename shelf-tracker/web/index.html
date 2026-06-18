@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Shelf Tracker</title>
+<meta name="theme-color" content="#F7F4F5">
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Shelf">
+<link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spline+Sans+Mono:wght@400;500;600&display=swap">
 <style>
@@ -378,27 +385,30 @@ body.preview .app{position:relative;inset:auto;width:393px;height:852px;max-widt
           <input id="f_brand" placeholder="type — autocompletes from your brands" autocomplete="off">
           <div class="ac" id="add-ac"></div>
         </div>
-        <div class="field"><label>Product name</label><input id="f_product" placeholder="EN or 中文" autocomplete="off"></div>
+        <div class="field"><label>Product name</label><input id="f_product" list="prod-list" placeholder="EN or 中文" autocomplete="off"><datalist id="prod-list"></datalist></div>
         <div class="field-row">
           <div class="field mono"><label>Shade code</label><input id="f_sn" placeholder="PK03" autocomplete="off"></div>
           <div class="field"><label>Shade name</label><input id="f_shade" placeholder="Cherry" autocomplete="off"></div>
         </div>
         <div class="catrow" id="areaChips"><span class="lab">Area</span></div>
-        <div class="field-row">
-          <div class="field"><label>Use-by 까지</label><input id="f_exp" type="date"></div>
-          <div class="field"><label>Mfg 제조</label><input id="f_mfg" type="date"></div>
+        <div class="field"><label>Use-by 까지</label><input id="f_exp" type="date"></div>
+        <button type="button" class="btn ghost full" id="add-more-btn" style="height:46px;font-size:14px">More details ▾</button>
+        <div id="add-more" style="display:none;flex-direction:column;gap:9px">
+          <div class="field-row">
+            <div class="field"><label>Mfg 제조</label><input id="f_mfg" type="date"></div>
+            <div class="field"><label>Opened</label><input id="f_opened" type="date"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>PAO months</label><select id="f_pao"><option value="">—</option><option>6</option><option>9</option><option selected>12</option><option>18</option><option>24</option><option>36</option></select></div>
+            <div class="field"><label>Price</label><input id="f_price" inputmode="decimal" placeholder="9.99" autocomplete="off"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Purchased</label><input id="f_purchase" type="date"></div>
+            <div class="field mono"><label>Barcode</label><input id="f_barcode" inputmode="numeric" placeholder="8809…" autocomplete="off"></div>
+          </div>
+          <div class="field"><label>Notes</label><input id="f_notes" autocomplete="off"></div>
         </div>
-        <div class="field-row">
-          <div class="field"><label>Opened</label><input id="f_opened" type="date"></div>
-          <div class="field"><label>PAO months</label><select id="f_pao"><option value="">—</option><option>6</option><option>9</option><option selected>12</option><option>18</option><option>24</option><option>36</option></select></div>
-        </div>
-        <div class="field-row">
-          <div class="field"><label>Price</label><input id="f_price" inputmode="decimal" placeholder="9.99" autocomplete="off"></div>
-          <div class="field"><label>Purchased</label><input id="f_purchase" type="date"></div>
-        </div>
-        <div class="field mono"><label>Barcode</label><input id="f_barcode" inputmode="numeric" placeholder="8809…" autocomplete="off"></div>
-        <div class="field"><label>Notes</label><input id="f_notes" autocomplete="off"></div>
-        <p class="hint">Dates optional — the badge falls back to <b>mfg + 36 mo “est.”</b> Shade code &amp; barcode save as text, leading zeros survive.</p>
+        <p class="hint">Only <b>Brand</b> and a <b>shade</b> are needed — everything else is optional. Undated items fall back to <b>mfg + 36 mo “est.”</b></p>
       </div>
       <div class="dock"><button class="btn primary full" id="saveBtn">Save</button></div>
     </section>
@@ -885,9 +895,17 @@ function buildAreaChips(){
     b.onclick=function(){ picked[a]=!picked[a]; b.classList.toggle('on', !!picked[a]); };
     host.appendChild(b);
   });
+  applySavedAreas();
+}
+function applySavedAreas(){
+  var saved=[]; try{ saved=JSON.parse(localStorage.getItem('st.area')||'[]')||[]; }catch(e){}
+  if(!saved.length) return;
+  picked={}; saved.forEach(function(a){ picked[a]=true; });
+  $$('#areaChips .catpill').forEach(function(x){ x.classList.toggle('on', !!picked[x.textContent]); });
 }
 function readAdd(){
   var areasel=Object.keys(picked).filter(function(a){ return picked[a]; });
+  try{ localStorage.setItem('st.area', JSON.stringify(areasel)); }catch(e){}
   return {
     brand_name:$('f_brand').value.trim(), product_name:$('f_product').value.trim(),
     area_usage:areasel.join(', '), shade_number:$('f_sn').value.trim(), shade_name:$('f_shade').value.trim(),
@@ -901,8 +919,11 @@ function resetAdd(keepBrand){
   ['f_product','f_sn','f_shade','f_exp','f_mfg','f_opened','f_price','f_purchase','f_barcode','f_notes'].forEach(function(i){ $(i).value=''; });
   if(!keepBrand) $('f_brand').value='';
   picked={}; $$('#areaChips .catpill').forEach(function(x){ x.classList.remove('on'); });
+  var m=$('add-more'); if(m) m.style.display='none'; var mb=$('add-more-btn'); if(mb) mb.textContent='More details ▾';
+  applySavedAreas(); refreshProducts();
 }
 function wireAdd(){
+  var moreBtn=$('add-more-btn'); if(moreBtn) moreBtn.onclick=function(){ var m=$('add-more'); var open=getComputedStyle(m).display==='none'; m.style.display=open?'flex':'none'; this.textContent=open?'Fewer details ▴':'More details ▾'; };
   var brand=$('f_brand'), ac=$('add-ac');
   brand.addEventListener('input', function(){
     var v=brand.value.trim().toLowerCase();
@@ -926,7 +947,11 @@ function wireAdd(){
     commitItem(item, true);
   });
 }
-function refreshProducts(){ /* product datalist hook reserved; products available in BOOT.products */ }
+function refreshProducts(){
+  var b=$('f_brand').value.trim();
+  var prods=(BOOT.products && BOOT.products[b]) ? BOOT.products[b] : [];
+  var dl=$('prod-list'); if(dl) dl.innerHTML = prods.map(function(p){ return '<option value="'+esc(p)+'"></option>'; }).join('');
+}
 
 function findDup(brand, code, product, shade){
   brand=(brand||'').trim().toLowerCase(); code=(code||'').trim().toLowerCase();
