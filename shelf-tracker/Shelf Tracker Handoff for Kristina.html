@@ -90,7 +90,7 @@
     <li><b>Made it bright & rosy</b><span>It was opening in dark mode on Ming's phone — we set the bright "glass skin" look as the default (dark is still one tap away).</span></li>
     <li><b>Put it on the cloud (Firebase)</b><span>Moved off the Google Sheet onto a real app with its own web address. This is the moment it got a link.</span></li>
     <li><b>Made the buttons feel nice</b><span>The bottom menu now presses with a little spring, a glow behind the active tab, and a soft buzz.</span></li>
-    <li><b>Locked the door 🔒</b><span>Added Google sign-in so only you and Ming can open it — done before sharing any of the code.</span></li>
+    <li><b>Locked the door 🔒, then shared the code</b><span>Google sign-in so only you (yna.palette@gmail.com) and Ming can open it — your data stays private behind the login. With that lock in place, the code itself was made public to read.</span></li>
   </ul>
 </div>
 
@@ -113,11 +113,11 @@ Before editing, know this:
 
 What I want to do: [describe your change — e.g. "add a 'finished' button to items", "make the favorite star gold", "show items expiring this month at the very top"].</div>
 
-<h3>② Access you'll need from Ming (ask him once)</h3>
+<h3>② Your access — most of it is already set up</h3>
 <ul class="clean">
-  <li><b>Sign-in:</b> your Google email is already on the app's allow-list — if it ever says "not on the allow-list," send Ming the exact Gmail you're using.</li>
-  <li><b>To edit the code:</b> ask Ming to add you as a collaborator on the GitHub repo (or to make it public).</li>
-  <li><b>To publish changes yourself:</b> ask Ming to add you to the Firebase project (Firebase Console → Project settings → Users and permissions).</li>
+  <li><b>Sign-in (ready now):</b> open the app and sign in with <b>yna.palette@gmail.com</b> — it's already on the allow-list, so you're straight in. (If it ever says "not on the allow-list," double-check you picked that exact account.)</li>
+  <li><b>The code (public):</b> the repo is public — you can read and clone it freely, no permission needed. To <i>push</i> your own changes back, ask Ming to add you as a collaborator.</li>
+  <li><b>To publish changes yourself:</b> ask Ming to add you to the Firebase project (Firebase Console → Project settings → Users and permissions), then run <code>npx firebase login</code> with that account.</li>
 </ul>
 
 <h3>③ One-time setup on your computer</h3>
