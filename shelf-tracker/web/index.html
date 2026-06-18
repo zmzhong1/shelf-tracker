@@ -206,7 +206,7 @@ body.preview .app{position:relative;inset:auto;width:393px;height:852px;max-widt
 .btn.full{width:100%}
 .btn-row{display:flex;gap:10px}
 .btn-row .btn{flex:1}
-.dock{position:absolute;left:18px;right:18px;bottom:calc(96px + env(safe-area-inset-bottom));z-index:18}
+.dock{position:absolute;left:18px;right:18px;bottom:calc(112px + env(safe-area-inset-bottom));z-index:50}
 
 /* bottom sheet */
 .scrim{position:absolute;inset:0;background:rgba(26,21,24,.34);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);opacity:0;visibility:hidden;transition:opacity .26s,visibility .26s;z-index:60}
@@ -997,22 +997,37 @@ function resetScan(){
   $('scan-cam').onclick=startLiveScan;
   $('scanFile').addEventListener('change', onScanFile);
 }
+function scanCamError(msg){
+  if(liveScanner){ try{ liveScanner.clear(); }catch(e){} liveScanner=null; }
+  $('reader').style.display='none'; $('vf-guide').style.display='block'; $('vf-hint').textContent='';
+  $('scan-result-wrap').innerHTML='<div class="scan-result miss"><div class="ic">'+I.spark+'</div><div class="st"><b>Camera didn’t start</b><span>'+esc(msg)+' — use Upload photo instead</span></div></div>';
+  $('scan-dock').innerHTML='<div class="btn-row"><button class="btn iri" style="flex:1.2" id="scan-cam">Try camera again</button>'+scanUploadInput()+'</div>';
+  $('scan-cam').onclick=startLiveScan; $('scanFile').addEventListener('change', onScanFile);
+}
 function startLiveScan(){
   if(typeof Html5Qrcode==='undefined'){ toast('Scanner not loaded'); return; }
   scanHandled=false;
   $('vf-guide').style.display='none'; $('vf-photo').style.display='none'; $('reader').style.display='block';
-  $('vf-hint').textContent='Point at the barcode…';
-  $('scan-dock').innerHTML='<button class="btn ghost full" id="scan-stop">Stop</button>'; $('scan-stop').onclick=resetScan;
+  $('vf-hint').textContent='Starting camera…';
+  $('scan-dock').innerHTML='<button class="btn ghost full" id="scan-stop">Cancel</button>'; $('scan-stop').onclick=resetScan;
   var fmts; try{ fmts=[Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,Html5QrcodeSupportedFormats.CODE_128]; }catch(e){}
   try{ liveScanner=new Html5Qrcode('reader', fmts?{formatsToSupport:fmts}:undefined); }
-  catch(e){ liveScanner=null; toast('Scanner init failed'); resetScan(); return; }
-  liveScanner.start({facingMode:'environment'}, {fps:10, qrbox:{width:250,height:170}},
-    function(text){ onCode(text); }, function(){}
-  ).catch(function(e){
-    liveScanner=null; $('reader').style.display='none'; $('vf-guide').style.display='block'; $('vf-hint').textContent='';
-    $('scan-result-wrap').innerHTML='<div class="scan-result miss"><div class="ic">'+I.spark+'</div><div class="st"><b>Camera unavailable</b><span>'+esc((e&&e.message)||'allow camera access, or use Upload')+'</span></div></div>';
-    $('scan-dock').innerHTML='<div class="btn-row">'+scanUploadInput()+'</div>'; $('scanFile').addEventListener('change', onScanFile);
-  });
+  catch(e){ scanCamError('init failed — '+((e&&e.message)||e)); return; }
+  var cfg={fps:10, qrbox:{width:250,height:170}};
+  function begin(cam){
+    liveScanner.start(cam, cfg, function(text){ onCode(text); }, function(){})
+      .then(function(){ $('vf-hint').textContent='Point at the barcode…'; })
+      .catch(function(e){ scanCamError((e&&e.message)||'camera blocked'); });
+  }
+  if(Html5Qrcode.getCameras){
+    Html5Qrcode.getCameras().then(function(cams){
+      if(!cams||!cams.length){ begin({facingMode:'environment'}); return; }
+      var back=cams.filter(function(c){ return /back|rear|environment/i.test(c.label||''); })[0];
+      begin((back||cams[cams.length-1]).id);
+    }).catch(function(e){ scanCamError((e&&e.message)||'allow camera access'); });
+  } else {
+    begin({facingMode:'environment'});
+  }
 }
 function stopLiveScan(){ if(liveScanner){ var s=liveScanner; liveScanner=null; try{ s.stop().then(function(){ try{s.clear();}catch(e){} }, function(){}); }catch(e){} } }
 function onCode(code){
