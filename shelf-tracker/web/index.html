@@ -1255,7 +1255,20 @@ function showGate(mode, email){
     $('gate-body').innerHTML='<div class="gate-card"><div class="gate-logo">Shelf Tracker</div>'
       +'<p class="gate-msg">Private shelf — sign in to continue.</p>'
       +'<button class="btn iri full" id="gate-signin">Sign in with Google</button></div>';
-    $('gate-signin').onclick=function(){ AUTH.signInWithRedirect(GOOGLE); };
+    $('gate-signin').onclick=function(){
+      var b=$('gate-signin'), msg=$('gate-body').querySelector('.gate-msg'); b.disabled=true;
+      // Popup is the reliable path on iOS Chrome/Safari — signInWithRedirect silently fails
+      // there under cross-site storage partitioning. Fall back to redirect only if the popup
+      // is blocked, and surface any other error instead of failing silently.
+      AUTH.signInWithPopup(GOOGLE).catch(function(e){
+        b.disabled=false; var code=(e&&e.code)||'';
+        if(code==='auth/popup-blocked'||code==='auth/operation-not-supported-in-this-environment'||code==='auth/cancelled-popup-request'){
+          AUTH.signInWithRedirect(GOOGLE).catch(function(e2){ if(msg) msg.textContent='Sign-in failed: '+((e2&&e2.message)||code); });
+        } else if(code!=='auth/popup-closed-by-user'){
+          if(msg) msg.textContent='Sign-in error: '+((e&&e.message)||code||'unknown')+' — tap to retry.';
+        }
+      });
+    };
   }
 }
 function hideGate(){ var g=$('authgate'); if(g) g.classList.remove('show'); }
