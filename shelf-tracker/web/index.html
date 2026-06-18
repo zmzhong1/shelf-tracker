@@ -416,7 +416,14 @@ body.preview .app{position:relative;inset:auto;width:393px;height:852px;max-widt
     <!-- SCAN -->
     <section class="screen" data-screen="scan">
       <div class="screen__scroll">
-        <div class="screen-head"><h2 class="screen-title">Scan</h2><span class="screen-sub">barcode → prefill</span></div>
+        <div class="screen-head"><h2 class="screen-title">Scan</h2><span class="screen-sub">photo or barcode</span></div>
+        <div class="panel" style="gap:8px">
+          <h4>Add by photo</h4>
+          <p class="hint" style="padding:0">Snap the product front + the 까지 / 제조 stamp — AI reads the brand, shade &amp; dates for you later. No typing.</p>
+          <label class="btn iri full" style="position:relative;overflow:hidden;cursor:pointer;margin-top:2px">Take or choose photo<input type="file" id="aiPhoto" accept="image/*" capture="environment" style="position:absolute;inset:0;opacity:0"></label>
+          <div class="hint" id="ai-count" style="padding:0;text-align:center"></div>
+        </div>
+        <p class="hint" style="text-align:center;margin-top:2px">— or scan a barcode —</p>
         <div class="viewfinder" id="viewfinder">
           <div class="vf-blur"></div>
           <div id="reader" style="position:absolute;inset:0;display:none;border-radius:22px;overflow:hidden"></div>
@@ -564,7 +571,9 @@ var API = {
   },
   addHaulItem: function(item){ item=item||{}; if(!item.created_date) item.created_date=TODAY(); if(item.checked==='') item.checked=false; item.createdAt=Date.now(); return HAULC.add(item).then(function(ref){ return { row:ref.id }; }); },
   setHaulChecked: function(row, checked){ return HAULC.doc(row).update({ checked: checked?'yes':'' }).then(function(){ return checked; }); },
-  removeHaulItem: function(row){ return HAULC.doc(row).delete().then(function(){ return true; }); }
+  removeHaulItem: function(row){ return HAULC.doc(row).delete().then(function(){ return true; }); },
+  addScan: function(dataURL){ return DB.collection('scans').add({ img:dataURL, status:'pending', createdAt:Date.now() }).then(function(ref){ return { row:ref.id }; }); },
+  countScans: function(){ try{ return DB.collection('scans').count().get().then(function(s){ return s.data().count; }); }catch(e){ return Promise.resolve(null); } }
 };
 function RUN(fn, ok, fail){
   var args = [].slice.call(arguments, 3);
@@ -681,7 +690,7 @@ function go(name){
   stopLiveScan();
   $$('.screen').forEach(function(s){ s.classList.toggle('active', s.dataset.screen===name); });
   $$('.tab').forEach(function(t){ t.classList.toggle('on', t.dataset.go===name); });
-  if(name==='scan') resetScan();
+  if(name==='scan'){ resetScan(); refreshAiCount(); }
   if(name==='cat' && catView==='haul') loadHaul();
   var sc=document.querySelector('.screen[data-screen="'+name+'"] .screen__scroll'); if(sc) sc.scrollTop=0;
 }
@@ -1109,6 +1118,37 @@ function scanResult(code, r){
 }
 function wireScan(){ var sf=$('scanFile'); if(sf) sf.addEventListener('change', onScanFile); }
 
+/* ---------------- PHOTO FOR AI (store downscaled JPEG → Firestore `scans`) ---------------- */
+function downscaleToDataURL(file, maxDim, q){
+  return new Promise(function(resolve,reject){
+    var img=new Image();
+    img.onload=function(){
+      var w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+      var s=Math.min(1, maxDim/Math.max(w,h)), cw=Math.max(1,Math.round(w*s)), ch=Math.max(1,Math.round(h*s));
+      try{ var c=document.createElement('canvas'); c.width=cw; c.height=ch; c.getContext('2d').drawImage(img,0,0,cw,ch);
+        var url=c.toDataURL('image/jpeg', q||0.7); try{URL.revokeObjectURL(img.src);}catch(e){} resolve(url);
+      }catch(e){ reject(e); }
+    };
+    img.onerror=function(){ reject(new Error('could not read image (HEIC may not work on this browser)')); };
+    img.src=URL.createObjectURL(file);
+  });
+}
+function refreshAiCount(){
+  RUN('countScans', function(n){ var el=$('ai-count'); if(!el) return;
+    el.textContent = n==null ? '' : (n>0 ? (n+' photo'+(n>1?'s':'')+' waiting · analyze in Claude Code') : 'No photos waiting yet'); }, function(){});
+}
+function wireAiPhoto(){
+  var inp=$('aiPhoto'); if(!inp) return;
+  inp.addEventListener('change', function(){
+    var f=inp.files[0]; if(!f) return;
+    var el=$('ai-count'); if(el) el.textContent='Saving photo…';
+    downscaleToDataURL(f, 1200, 0.7).then(function(url){
+      RUN('addScan', function(){ toast('Photo saved for AI ✓'); inp.value=''; refreshAiCount(); },
+        function(e){ toast('Save failed: '+((e&&e.message)||'')); inp.value=''; refreshAiCount(); }, url);
+    }).catch(function(e){ toast((e&&e.message)||'Could not read that photo'); inp.value=''; refreshAiCount(); });
+  });
+}
+
 /* ---------------- IMPORT ---------------- */
 var PASTE_SAMPLE='Dasique\tBlur Cheek\tCheek\t#05\tFig Fig\tAug 16, 2028\nHince\t提亮腮紅澎澎餅\tCheek\t01\tPoong Glow\nFWEE\tPudding Pot\tLip, Cheek\tPK03\tCherry\tMay 21, 2027';
 function previewImport(){
@@ -1347,7 +1387,7 @@ function wireAuth(){
 /* ---------------- boot ---------------- */
 document.addEventListener('DOMContentLoaded', function(){
   buildTabbar(); buildAreaChips();
-  wireDark(); wireList(); wireDetail(); wireAdd(); wireScan(); wireImport(); wireCatalog();
+  wireDark(); wireList(); wireDetail(); wireAdd(); wireScan(); wireImport(); wireCatalog(); wireAiPhoto();
   applyPrefill();
   wireAuth();
 });
