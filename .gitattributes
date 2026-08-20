@@ -1,0 +1,21 @@
+# Normalize line endings to LF inside the repo.
+# This SSD travels between Mac (LF) and Windows (CRLF); without this, every
+# file touched on Windows shows up as a full-file diff (CRLF<->LF churn),
+# producing phantom 400-file changesets. Forcing LF in the repo stops that.
+* text=auto eol=lf
+
+# Binary types — never apply EOL conversion to these.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.svg  text eol=lf
+*.pdf  binary
+*.xlsx binary
+*.xls  binary
+*.zip  binary
+*.gz   binary
+*.woff binary
+*.woff2 binary
+*.ttf  binary
