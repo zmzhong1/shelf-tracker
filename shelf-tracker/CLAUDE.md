@@ -17,8 +17,12 @@ shelf-tracker/
 - **Tracker** = system of record. Runs as GAS web app (`/exec` URL → iPhone Add to Home Screen).
 - **Scanner** = photo → Claude vision → TSV rows → pasted into Tracker Import tab. The keyless
   Anthropic API (`fetch https://api.anthropic.com/v1/messages`, no key, model
-  `claude-sonnet-4-20250514`, `max_tokens: 1000`) ONLY works inside a claude.ai artifact.
+  `claude-sonnet-4-6`, `max_tokens: 1000`) ONLY works inside a claude.ai artifact.
   Never move this to GitHub Pages or the GAS app. After edits, Ming re-publishes the artifact manually.
+  Model was `claude-sonnet-4-20250514` until 2026-09-25 (retired dated Sonnet 4 ID). **Do not swap to
+  `claude-sonnet-5` without also raising `max_tokens`** — Sonnet 5 thinks by default when `thinking`
+  is omitted, so reasoning eats the 1000-token budget, the JSON comes back truncated, and every photo
+  fails as "no products found". Sonnet 4.6 does not think unless asked, which is why it is the pick.
 - **Catalog** = static page; v1.1 makes it read the sheet's publish-to-web CSV.
 
 ## Hard rules (violating these breaks her data)
