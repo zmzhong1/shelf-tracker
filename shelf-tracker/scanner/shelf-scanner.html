@@ -233,6 +233,7 @@ $('#files').addEventListener('change', function(e){
   e.target.value = '';
 });
 $('#clearBtn').addEventListener('click', function(){
+  photos.forEach(function(p){ URL.revokeObjectURL(p.url); });
   rows = []; photos = []; $('#queue').innerHTML = ''; render(); $('#queue-label').style.display='none';
 });
 
@@ -253,6 +254,7 @@ async function scan(p){
   p.el.querySelector('.cap').innerHTML = 'reading…<span class="sub">'+esc(p.file.name||'photo')+'</span>';
   try{
     var b64 = await resizeToBase64(p.file, 1568);
+    if(photos.indexOf(p)===-1) return; // Clear invalidates pending decodes and requests.
     var res = await fetch("https://api.anthropic.com/v1/messages", {
       method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({
@@ -264,15 +266,19 @@ async function scan(p){
       })
     });
     var data = await res.json();
+    if(photos.indexOf(p)===-1) return;
     var text = (data.content||[]).filter(function(c){return c.type==="text";}).map(function(c){return c.text;}).join("\n");
     var arr = JSON.parse(text.replace(/```json|```/g,"").trim());
     if(!Array.isArray(arr) || !arr.length) throw new Error("no products found");
+    if(arr.some(function(o){ return !o || typeof o!=="object" || Array.isArray(o); }))
+      throw new Error("invalid product response");
     arr.forEach(function(o){ addRow(o, p.url); });
     p.el.className = 'photo read';
     p.el.querySelector('.state').innerHTML = CHK;
     var first = arr[0];
     p.el.querySelector('.cap').innerHTML = 'read<span class="sub">'+esc([first.brand_name,first.shade_number].filter(Boolean).join(' · ')||(arr.length+' item'+(arr.length>1?'s':'')))+'</span>';
   }catch(err){
+    if(photos.indexOf(p)===-1) return;
     p.el.className = 'photo fail';
     p.el.querySelector('.state').innerHTML = XICON;
     p.el.querySelector('.cap').innerHTML = 'retake<span class="sub">'+esc(err.message||'failed')+'</span>';
@@ -295,13 +301,13 @@ function resizeToBase64(file, max){
 }
 
 function addRow(o, thumb){
-  var d = FIELDS.reduce(function(a,f){ a[f]=String(o[f]||''); return a; }, {});
+  var d = FIELDS.reduce(function(a,f){ a[f]=String(o[f]==null?'':o[f]); return a; }, {});
   rows.push({ data:d, thumb:thumb, checked:true });
   render();
 }
 
 /* ---- render results ---- */
-function lowConf(d){ return (d.confidence||'').toLowerCase()==='low'; }
+function lowConf(d){ return String(d.confidence||'').trim().toLowerCase()!=='high'; }
 function render(){
   var has = rows.length>0;
   $('#results-wrap').style.display = has?'block':'none';
@@ -361,7 +367,7 @@ $('#copyBtn').addEventListener('click', function(){
     var d = r.data;
     return [ d.brand_name, d.product_name, d.area_usage, d.shade_number, d.shade_name,
              d.expiration_date, d.manufacture_date, "", "", d.barcode, "active", "", "", "", d.notes, "" ]
-      .map(function(v){ return String(v).replace(/\t/g," ").replace(/\n/g," "); }).join("\t");
+      .map(function(v){ return String(v).replace(/[\t\r\n]/g," "); }).join("\t");
   });
   var tsv = lines.join("\n");
   if(navigator.clipboard && navigator.clipboard.writeText){
