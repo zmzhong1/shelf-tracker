@@ -408,7 +408,7 @@ body.preview .app{position:relative;inset:auto;width:393px;height:852px;max-widt
           </div>
           <div class="field"><label>Notes</label><input id="f_notes" autocomplete="off"></div>
         </div>
-        <p class="hint">Only <b>Brand</b> and a <b>shade</b> are needed — everything else is optional. Undated items fall back to <b>mfg + 36 mo “est.”</b></p>
+        <p class="hint">Only <b>Brand</b> and a <b>shade</b> are needed — everything else is optional. The badge uses the earliest date, including <b>mfg + 36 mo “est.”</b></p>
       </div>
       <div class="dock"><button class="btn primary full" id="saveBtn">Save</button></div>
     </section>
@@ -534,7 +534,7 @@ var API = {
   },
   addItem: function(item){ item=item||{}; item.favorite=false; item.createdAt=Date.now(); return ITEMS.add(item).then(function(ref){ return { row:ref.id }; }); },
   bulkImport: function(tsv){
-    var lines=String(tsv).split(/\r?\n/).map(function(l){ return l.trim(); }).filter(Boolean);
+    var lines=String(tsv).split(/\r?\n/).filter(function(l){ return l.trim(); });
     if(!lines.length) return Promise.resolve({ added:0 });
     var batch=DB.batch(), t0=Date.now();
     lines.forEach(function(line,i){
@@ -567,7 +567,7 @@ var API = {
           shade:(d.shade_name||'').trim(), krw:Number(String(d.krw_price||'').replace(/[^0-9.]/g,''))||0, note:(d.note||'').trim(), checked:(d.checked==='yes'||d.checked===true) });
       });
       return rows;
-    }).catch(function(){ return []; });
+    });
   },
   addHaulItem: function(item){ item=item||{}; if(!item.created_date) item.created_date=TODAY(); if(item.checked==='') item.checked=false; item.createdAt=Date.now(); return HAULC.add(item).then(function(ref){ return { row:ref.id }; }); },
   setHaulChecked: function(row, checked){ return HAULC.doc(row).update({ checked: checked?'yes':'' }).then(function(){ return checked; }); },
@@ -618,8 +618,9 @@ function baseColor(brand,sn,shade){ return PALETTE[ hashStr((brand||'')+'|'+(sn|
 function effExp(r){
   var c=[];
   if(r.exp){ var d=new Date(r.exp); if(!isNaN(d)) c.push({t:+d,basis:'printed '+fmtMon(d),est:false}); }
-  if(r.opened && r.pao){ var o=new Date(r.opened); if(!isNaN(o)){ o.setMonth(o.getMonth()+ +r.pao); c.push({t:+o,basis:'opened +'+r.pao+'mo',est:false}); } }
-  if(!c.length && r.mfg){ var m=new Date(r.mfg); if(!isNaN(m)){ m.setMonth(m.getMonth()+36); c.push({t:+m,basis:'mfg +36mo (est.)',est:true}); } }
+  var pao=Number(r.pao);
+  if(r.opened && isFinite(pao) && pao>0){ var o=new Date(r.opened); if(!isNaN(o)){ o.setMonth(o.getMonth()+pao); if(!isNaN(o)) c.push({t:+o,basis:'opened +'+pao+'mo',est:false}); } }
+  if(r.mfg){ var m=new Date(r.mfg); if(!isNaN(m)){ m.setMonth(m.getMonth()+36); if(!isNaN(m)) c.push({t:+m,basis:'mfg +36mo (est.)',est:true}); } }
   if(!c.length) return null;
   c.sort(function(a,b){ return a.t-b.t; });
   return { d:new Date(c[0].t), est:c[0].est, basis:c[0].basis };
@@ -642,6 +643,7 @@ function model(r){
 /* ---------------- state ---------------- */
 var BOOT = { rows:[], brands:[], products:{}, count:0 };
 var HAUL = [];
+var haulBusy = false, haulLoading = false, haulStale = false;
 var listFilter = 'all', listQuery = '', catView = 'grid', catFilter = 'all', catOpen = {};
 
 function reloadBoot(after){
@@ -987,12 +989,17 @@ function commitItem(item, fromAdd){
 function doAdd(item, fromAdd){
   closeSheet();
   $('saveBtn').disabled=true;
+  if(!fromAdd && $('scan-save')) $('scan-save').disabled=true;
   RUN('addItem', function(){
     $('saveBtn').disabled=false;
     toast('Saved ✓ — on your shelf', fromAdd?'Add another':null);
     if(fromAdd) resetAdd(true);
     reloadBoot(function(){ if(!fromAdd) go('list'); });
-  }, function(e){ $('saveBtn').disabled=false; toast('Save failed: '+(e&&e.message)); }, item);
+  }, function(e){
+    $('saveBtn').disabled=false;
+    if(!fromAdd && $('scan-save')) $('scan-save').disabled=false;
+    toast('Save failed: '+(e&&e.message));
+  }, item);
 }
 
 /* ---------------- DUPLICATE SHEET ---------------- */
@@ -1026,6 +1033,7 @@ function toast(msg, action){
 /* ---------------- SCAN ---------------- */
 var scanBusy=false;
 var liveScanner=null, scanHandled=false;
+var scanEpoch=0, scanPhotoUrl='';
 function scanUploadInput(){ return '<label class="btn ghost" style="flex:1;position:relative;overflow:hidden;cursor:pointer">Upload photo<input type="file" id="scanFile" accept="image/*" style="position:absolute;inset:0;opacity:0"></label>'; }
 function resetScan(){
   scanBusy=false; scanHandled=false; stopLiveScan();
@@ -1038,7 +1046,7 @@ function resetScan(){
   $('scanFile').addEventListener('change', onScanFile);
 }
 function scanCamError(msg){
-  if(liveScanner){ try{ liveScanner.clear(); }catch(e){} liveScanner=null; }
+  stopLiveScan();
   $('reader').style.display='none'; $('vf-guide').style.display='block'; $('vf-hint').textContent='';
   $('scan-result-wrap').innerHTML='<div class="scan-result miss"><div class="ic">'+I.spark+'</div><div class="st"><b>Camera didn’t start</b><span>'+esc(msg)+' — use Upload photo instead</span></div></div>';
   $('scan-dock').innerHTML='<div class="btn-row"><button class="btn iri" style="flex:1.2" id="scan-cam">Try camera again</button>'+scanUploadInput()+'</div>';
@@ -1046,57 +1054,90 @@ function scanCamError(msg){
 }
 function startLiveScan(){
   if(typeof Html5Qrcode==='undefined'){ toast('Scanner not loaded'); return; }
+  stopLiveScan();
+  var epoch=scanEpoch, scanner;
   scanHandled=false;
   $('vf-guide').style.display='none'; $('vf-photo').style.display='none'; $('reader').style.display='block';
   $('vf-hint').textContent='Starting camera…';
   $('scan-dock').innerHTML='<button class="btn ghost full" id="scan-stop">Cancel</button>'; $('scan-stop').onclick=resetScan;
   var fmts; try{ fmts=[Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,Html5QrcodeSupportedFormats.CODE_128]; }catch(e){}
-  try{ liveScanner=new Html5Qrcode('reader', fmts?{formatsToSupport:fmts}:undefined); }
+  try{ scanner=new Html5Qrcode('reader', fmts?{formatsToSupport:fmts}:undefined); liveScanner=scanner; }
   catch(e){ scanCamError('init failed — '+((e&&e.message)||e)); return; }
   var cfg={fps:10, qrbox:{width:250,height:170}};
   function begin(cam){
-    liveScanner.start(cam, cfg, function(text){ onCode(text); }, function(){})
-      .then(function(){ $('vf-hint').textContent='Point at the barcode…'; })
-      .catch(function(e){ scanCamError((e&&e.message)||'camera blocked'); });
+    if(epoch!==scanEpoch || liveScanner!==scanner) return;
+    Promise.resolve().then(function(){
+      if(epoch!==scanEpoch || liveScanner!==scanner) return;
+      return scanner.start(cam, cfg, function(text){
+        if(epoch===scanEpoch && liveScanner===scanner) onCode(text);
+      }, function(){});
+    }).then(function(){
+      if(epoch!==scanEpoch || liveScanner!==scanner){ disposeLiveScanner(scanner); return; }
+      $('vf-hint').textContent='Point at the barcode…';
+    }).catch(function(e){
+      if(epoch===scanEpoch && liveScanner===scanner) scanCamError((e&&e.message)||'camera blocked');
+      else disposeLiveScanner(scanner);
+    });
   }
   if(Html5Qrcode.getCameras){
     Html5Qrcode.getCameras().then(function(cams){
       if(!cams||!cams.length){ begin({facingMode:'environment'}); return; }
       var back=cams.filter(function(c){ return /back|rear|environment/i.test(c.label||''); })[0];
       begin((back||cams[cams.length-1]).id);
-    }).catch(function(e){ scanCamError((e&&e.message)||'allow camera access'); });
+    }).catch(function(e){ if(epoch===scanEpoch && liveScanner===scanner) scanCamError((e&&e.message)||'allow camera access'); });
   } else {
     begin({facingMode:'environment'});
   }
 }
-function stopLiveScan(){ if(liveScanner){ var s=liveScanner; liveScanner=null; try{ s.stop().then(function(){ try{s.clear();}catch(e){} }, function(){}); }catch(e){} } }
+function disposeLiveScanner(scanner){
+  function clear(){
+    if(liveScanner && liveScanner!==scanner) return;
+    try{ scanner.clear(); }catch(e){}
+  }
+  try{ Promise.resolve(scanner.stop()).then(clear, clear); }catch(e){ clear(); }
+}
+function stopLiveScan(){
+  scanEpoch++; scanBusy=false;
+  if(liveScanner){ var scanner=liveScanner; liveScanner=null; disposeLiveScanner(scanner); }
+  if(scanPhotoUrl){ URL.revokeObjectURL(scanPhotoUrl); scanPhotoUrl=''; }
+}
 function onCode(code){
   if(scanHandled) return; scanHandled=true;
   stopLiveScan(); $('reader').style.display='none'; $('vf-hint').textContent='';
+  var epoch=scanEpoch; scanBusy=true;
   if(navigator.vibrate){ try{ navigator.vibrate(30); }catch(e){} }
-  RUN('lookupBarcode', function(r){ scanResult(code, r||{found:false}); }, function(){ scanResult(code,{found:false}); }, code);
+  RUN('lookupBarcode', function(r){ if(epoch===scanEpoch) scanResult(code, r||{found:false}); }, function(){ if(epoch===scanEpoch) scanResult(code,{found:false}); }, code);
 }
 async function onScanFile(e){
   var f=e.target.files[0]; if(!f || scanBusy) return;
+  stopLiveScan();
+  var epoch=scanEpoch;
   scanBusy=true;
-  $('vf-photo').src=URL.createObjectURL(f); $('vf-photo').style.display='block'; $('vf-guide').style.display='none';
+  scanPhotoUrl=URL.createObjectURL(f);
+  $('vf-photo').src=scanPhotoUrl; $('vf-photo').style.display='block'; $('vf-guide').style.display='none';
   $('scan-result-wrap').innerHTML='<div class="scan-result miss"><div class="spin"></div><div class="st"><b>Reading barcode…</b><span>decoding the photo</span></div></div>';
   var code='';
   try{
     if('BarcodeDetector' in window){
       var bd=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128']});
-      var bmp=await createImageBitmap(f); var res=await bd.detect(bmp); if(res.length) code=res[0].rawValue;
+      var bmp=await createImageBitmap(f);
+      try{ if(epoch!==scanEpoch) return; var res=await bd.detect(bmp); if(res.length) code=res[0].rawValue; }
+      finally{ if(bmp.close) bmp.close(); }
     }
   }catch(_){}
+  if(epoch!==scanEpoch) return;
   if(!code){
-    try{ var h5=new Html5Qrcode('vf-guide', false); var r=await h5.scanFileV2(f,false); code=r.decodedText; }catch(_){}
+    var h5;
+    try{ h5=new Html5Qrcode('vf-guide', false); var r=await h5.scanFileV2(f,false); code=r.decodedText; }catch(_){}
+    finally{ if(h5 && epoch===scanEpoch){ try{ h5.clear(); }catch(_){} } }
   }
+  if(epoch!==scanEpoch) return;
   if(!code){
     scanBusy=false;
     $('scan-result-wrap').innerHTML='<div class="scan-result miss"><div class="ic">'+I.spark+'</div><div class="st"><b>No barcode found</b><span>retake closer &amp; flatter, then tap the shutter</span></div></div>';
     $('vf-hint').textContent=''; return;
   }
-  RUN('lookupBarcode', function(r){ scanResult(code, r||{found:false}); }, function(){ scanResult(code,{found:false}); }, code);
+  RUN('lookupBarcode', function(r){ if(epoch===scanEpoch) scanResult(code, r||{found:false}); }, function(){ if(epoch===scanEpoch) scanResult(code,{found:false}); }, code);
 }
 function scanResult(code, r){
   scanBusy=false;
@@ -1118,7 +1159,6 @@ function scanResult(code, r){
       expiration_date:toTxt($('s_exp').value), manufacture_date:'', opened_date:'', pao_months:'12', barcode:code,
       status:'active', price:'', purchase_date:'', image_url:'', notes:'',
       swatch_color:baseColor(brand,$('s_sn').value.trim(),'') };
-    $('scan-save').disabled=true;
     commitItem(item, false);
   };
 }
@@ -1158,8 +1198,8 @@ function wireAiPhoto(){
 /* ---------------- IMPORT ---------------- */
 var PASTE_SAMPLE='Dasique\tBlur Cheek\tCheek\t#05\tFig Fig\tAug 16, 2028\nHince\t提亮腮紅澎澎餅\tCheek\t01\tPoong Glow\nFWEE\tPudding Pot\tLip, Cheek\tPK03\tCherry\tMay 21, 2027';
 function previewImport(){
-  var txt=$('paste').innerText.trim();
-  if(!txt){ $('import-preview').innerHTML=''; $('import-actions').style.display='none'; return; }
+  var txt=$('paste').innerText;
+  if(!txt.trim()){ $('import-preview').innerHTML=''; $('import-actions').style.display='none'; return; }
   var lines=txt.split(/\r?\n/).filter(function(l){ return l.trim(); });
   var newN=0;
   var html=lines.map(function(line){
@@ -1184,7 +1224,7 @@ function wireImport(){
   paste.addEventListener('paste', function(){ setTimeout(previewImport,0); });
   $('import-clear').addEventListener('click', function(){ paste.innerHTML=''; $('import-preview').innerHTML=''; $('import-actions').style.display='none'; });
   $('import-go').addEventListener('click', function(){
-    var txt=$('paste').innerText.trim(); if(!txt){ toast('Nothing to import'); return; }
+    var txt=$('paste').innerText; if(!txt.trim()){ toast('Nothing to import'); return; }
     var lines=txt.split(/\r?\n/).filter(function(l){ return l.trim(); });
     var keep=lines.filter(function(line){ var c=line.split('\t'); return !findDup((c[0]||'').trim(),(c[3]||'').trim(),(c[1]||'').trim(),(c[4]||'').trim()); });
     var skipped=lines.length-keep.length;
@@ -1282,12 +1322,34 @@ function renderInsights(){
 
 /* ---------------- CATALOG: Korea Haul ---------------- */
 function loadHaul(){
-  var host=document.querySelector('.cat-view[data-view="haul"]');
-  host.innerHTML='<p class="hint">Loading your haul list…</p>';
-  RUN('getHaul', function(rows){ HAUL=rows||[]; renderHaul(); }, function(){ HAUL=[]; renderHaul(); });
+  if(haulBusy || haulLoading) return;
+  haulLoading=true; renderHaul();
+  RUN('getHaul', function(rows){
+    HAUL=rows||[]; haulLoading=false; haulStale=false; renderHaul();
+  }, function(e){
+    haulLoading=false; haulStale=true; renderHaul();
+    toast('Could not refresh haul: '+((e&&e.message)||'Please retry'));
+  });
+}
+function writeHaul(fn, args, rollback){
+  if(haulBusy || haulLoading || haulStale) return;
+  // Keep mutations ordered so late responses cannot overwrite a newer state.
+  haulBusy=true; haulStale=true; renderHaul();
+  RUN.apply(null, [fn, function(){
+    haulBusy=false;
+    if(fn==='addHaulItem') toast('Added to haul');
+    loadHaul();
+  }, function(e){
+    if(rollback) rollback();
+    haulBusy=false;
+    toast('Could not update haul: '+((e&&e.message)||'Please retry'));
+    loadHaul();
+  }].concat(args));
 }
 function renderHaul(){
   var host=document.querySelector('.cat-view[data-view="haul"]');
+  var locked=haulBusy || haulLoading || haulStale;
+  var disabled=locked?' disabled':'';
   var total=HAUL.reduce(function(s,h){ return s+h.krw; },0);
   var spent=HAUL.filter(function(h){ return h.checked; }).reduce(function(s,h){ return s+h.krw; },0);
   var done=HAUL.filter(function(h){ return h.checked; }).length;
@@ -1297,26 +1359,30 @@ function renderHaul(){
       +'<div class="hi-main"><div class="hi-name">'+esc([h.brand,h.product,h.shade].filter(Boolean).join(' '))+'</div>'
       +'<div class="hi-sub">'+esc(h.note|| (h.sn?('shade '+h.sn):'')||'')+'</div></div>'
       + (h.krw?'<span class="hi-price">₩'+h.krw.toLocaleString()+'</span>':'')
-      +'<button class="hi-del" data-del="'+h.row+'" aria-label="Remove">×</button></div>';
+      +'<button class="hi-del" data-del="'+h.row+'" aria-label="Remove"'+disabled+'>×</button></div>';
   }).join('') : '<div class="empty">Your haul list is empty. Add a shade you want to buy in Korea — check it off in-store and the ₩ subtotal keeps score.</div>';
   host.innerHTML =
-    '<p class="hint">Check items off in-store — the subtotal updates live.</p>'
+    '<p class="hint">'+(haulBusy?'Saving your haul…':haulLoading?'Refreshing your haul…':haulStale?'Could not refresh. Retry before changing your haul.':'Check items off in-store — the subtotal updates live.')+'</p>'
+    + (haulStale && !haulBusy && !haulLoading?'<button class="btn ghost full" id="haul-retry">Retry</button>':'')
     + '<div id="haul-list" style="display:flex;flex-direction:column;gap:10px">'+listHTML+'</div>'
-    + '<button class="btn ghost full" id="haul-add-btn" style="height:46px;font-size:14px">+ Add to haul</button>'
+    + '<button class="btn ghost full" id="haul-add-btn" style="height:46px;font-size:14px"'+disabled+'>+ Add to haul</button>'
     + (HAUL.length ? '<div class="subtotal"><span class="sl">checked <b>'+done+' of '+HAUL.length+'</b></span>'
         +'<span class="sv"><span class="spent">₩'+spent.toLocaleString()+'</span> · ₩'+(total-spent).toLocaleString()+' left</span></div>' : '');
   var list=$('haul-list');
   if(list) list.addEventListener('click', function(e){
+    if(haulBusy || haulLoading || haulStale) return;
     var del=e.target.closest('[data-del]');
-    if(del){ e.stopPropagation(); RUN('removeHaulItem', function(){ loadHaul(); }, null, del.dataset.del); return; }
+    if(del){ e.stopPropagation(); writeHaul('removeHaulItem', [del.dataset.del]); return; }
     var it=e.target.closest('.haul-item'); if(!it) return;
     var row=it.dataset.row, h=HAUL.filter(function(x){return x.row===row;})[0]; if(!h) return;
-    var nv=!h.checked; h.checked=nv; it.classList.toggle('done', nv); renderHaul();
-    RUN('setHaulChecked', null, null, row, nv);
+    var previous=h.checked, nv=!previous; h.checked=nv;
+    writeHaul('setHaulChecked', [row, nv], function(){ h.checked=previous; });
   });
+  var retry=$('haul-retry'); if(retry) retry.onclick=loadHaul;
   $('haul-add-btn').onclick=openHaulSheet;
 }
 function openHaulSheet(){
+  if(haulBusy || haulLoading || haulStale) return;
   $('sheet-body').innerHTML='<div class="sheet__grab"></div><div class="sheet__title">Add to Korea haul</div>'
     +'<div class="field"><label>Brand</label><input id="h_brand" placeholder="FWEE"></div>'
     +'<div class="field"><label>Product</label><input id="h_product" placeholder="Pudding Pot"></div>'
@@ -1327,11 +1393,12 @@ function openHaulSheet(){
   openSheet();
   $('sheet-body').querySelector('[data-cancel]').onclick=closeSheet;
   $('sheet-body').querySelector('[data-confirm]').onclick=function(){
+    if(haulBusy || haulLoading || haulStale) return;
     var item={ brand:$('h_brand').value.trim(), product:$('h_product').value.trim(), shade_number:$('h_sn').value.trim(),
       shade_name:'', krw_price:($('h_krw').value.replace(/[^0-9.]/g,'')||''), note:$('h_note').value.trim(), checked:'' };
     if(!item.brand && !item.product){ toast('Add a brand or product'); return; }
     closeSheet();
-    RUN('addHaulItem', function(){ toast('Added to haul'); loadHaul(); }, null, item);
+    writeHaul('addHaulItem', [item]);
   };
 }
 

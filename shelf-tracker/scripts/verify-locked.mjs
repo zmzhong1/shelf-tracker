@@ -19,7 +19,7 @@ for (let i = 1; i <= 8; i++) {
     console.log(`attempt ${i}: still OPEN — unauth read returned ${snap.size} docs (waiting for propagation)`);
   } catch (e) {
     if (e.code === 'permission-denied') {
-      console.log(`attempt ${i}: LOCKED ✓ — unauthenticated read denied. Allow-list is enforced.`);
+      console.log(`attempt ${i}: Unauthenticated items read denied. Signed-in allow-list behavior and write access are not verified.`);
       process.exit(0);
     }
     console.log(`attempt ${i}: error ${e.code || e.message}`);

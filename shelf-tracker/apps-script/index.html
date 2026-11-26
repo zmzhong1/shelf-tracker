@@ -1016,7 +1016,9 @@ function writeHaul(fn, args, rollback){
   // until a fresh read succeeds, including after an ambiguous server failure.
   haulBusy=true; haulStale=true; renderHaul();
   RUN.apply(null, [fn, function(){
-    haulBusy=false; loadHaul();
+    haulBusy=false;
+    if(fn==='addHaulItem') toast('Added to haul');
+    loadHaul();
   }, function(e){
     if(rollback) rollback();
     haulBusy=false;
