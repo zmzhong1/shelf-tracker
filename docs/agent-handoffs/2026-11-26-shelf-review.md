@@ -1,4 +1,4 @@
-Status: in progress
+Status: ready to merge (#14)
 
 # Shelf tracker and scanner review
 
@@ -27,7 +27,7 @@ Runtime scanner model: claude-sonnet-4-6 at shelf-tracker/scanner/shelf-scanner.
 
 ## Validation and review
 
-Initial combined suite: **37/37 passed, 0 skipped, 94.175459 ms**, Node v24.14.0. Includes 9 backend + 9 scanner + 19 interface tests; synthetic data and stubbed Apps Script/network only. `npm run check` passed, parsed the Tracker script and generated ignored local preview from the existing snapshot (201 items, 6 wishlist); the preview was not published or viewed. Embedded Catalog inventory/wishlist declarations are byte-for-byte unchanged. `git diff --check` passed. Final synchronized rerun pending; later source review also covers the Firebase tracker as described below.
+Initial combined suite: **37/37 passed, 0 skipped, 94.175459 ms**, Node v24.14.0. Includes 9 backend + 9 scanner + 19 interface tests; synthetic data and stubbed Apps Script/network only. `npm run check` passed, parsed the Tracker script and generated ignored local preview from the existing snapshot (201 items, 6 wishlist); the preview was not published or viewed. Embedded Catalog inventory/wishlist declarations are byte-for-byte unchanged. `git diff --check` passed. Final synchronized results follow below, including the current Firebase tracker.
 
 Regression-first logs remain ignored under `_work/review/`: backend initially 7 failed/2 passed; scanner 7 failed/2 passed; UI 17 failed/2 passed; URL cleanup extension 2 failed/7 passed. Earlier backend harness timezone expectations were corrected separately, not counted as production defects. Verbatim failure excerpts follow below (blank-only whitespace omitted).
 
@@ -132,3 +132,11 @@ web-camera-restart-red.log
 Final camera follow-up serializes replacement construction behind previous start settlement and stop/clear completion. Exact upstream 2.3.8 source confirms stop itself mutates shared DOM: https://raw.githubusercontent.com/mebjas/html5-qrcode/v2.3.8/src/html5-qrcode.ts . Tests reproduce that internal mutation and rejected-start recovery. Web suite now 22/22 passed (118.530291 ms); prior serialization failure output is retained at `_work/review/web-stop-serialization-red.log`.
 
 During synchronization `git pull --rebase` attempted to replay the unpublished main merge; aborted it before edits, restored d5d3c24 clean, with no source loss or shared history rewrite. Publishing the coherent integration checkpoint before the final fetch/pull/merge avoids replaying that merge.
+
+## Final validation and handoff
+
+Final code tested: 92b1716, after fetch, own-branch pull --rebase, merge origin/main and merge origin/seoul-glass-followups (all up to date). `npm test`: **59 passed, 0 failed, 0 skipped, 90.867833 ms** (backend9 + scanner9 + legacy UI19 + web22). `npm run check`: pass; all four HTML inline scripts, Code.gs and verify-locked.mjs syntax pass. `git diff --check`: pass. The final status-only documentation commit does not alter tested code. No pull after these tests.
+
+A separate read-only Codex review verified the exact 2.3.8 shared-DOM lifecycle and reran 22/22 web tests; no additional confirmed defects. This is not a Claude verdict. Claude review pending due to the quoted usage cap. No CI configured/checks reported; no CI URL exists. Pending live checks are listed above.
+
+Ready PR: https://github.com/zmzhong1/shelf-tracker/pull/14 (`codex/shelf-review`). Temporary base `seoul-glass-followups` is a true scanner/UI dependency; merge #13 into main first, retarget #14 to main, refresh/test and then merge #14 into main. Do not merge #14 into its temporary base. Source remains unmerged and unreleased. Rollback is revert #14's changes; no remote data migration or deployment exists to roll back.
