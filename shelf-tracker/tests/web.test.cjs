@@ -175,10 +175,11 @@ function cameraHarness() {
 test('camera enumeration resolving after Cancel cannot reopen or replace the reset UI', async () => {
   const { context, element, enumerate, instances } = cameraHarness();
   context.startLiveScan();
+  await flush();
   context.resetScan();
   enumerate.resolve([{ id: 'synthetic-camera', label: 'back' }]);
   await flush();
-  assert.equal(instances[0].starts, 0);
+  assert.ok(instances.every(scanner => scanner.starts === 0));
   assert.equal(element('scan-result-wrap').innerHTML, '');
 });
 test('camera start resolving after Cancel closes the late stream', async () => {
@@ -193,7 +194,7 @@ test('camera start resolving after Cancel closes the late stream', async () => {
   assert.equal(instances[0].running, false);
   assert.match(element('vf-hint').textContent, /upload a photo/);
 });
-test('cleanup from an old camera session cannot clear a replacement camera view', async () => {
+test('a replacement camera waits for the canceled start and cleanup to finish', async () => {
   const { context, enumerate, start, instances } = cameraHarness();
   context.startLiveScan();
   enumerate.resolve([{ id: 'synthetic-camera', label: 'back' }]);
@@ -201,11 +202,55 @@ test('cleanup from an old camera session cannot clear a replacement camera view'
   context.resetScan();
   context.startLiveScan();
   await flush();
+  assert.equal(instances.length, 1);
   start.resolve();
   await flush();
   assert.equal(instances[0].running, false);
   assert.equal(instances[1].running, true);
-  assert.equal(instances[0].clears, 0);
+  assert.equal(instances[0].clears, 1);
+});
+test('old stop DOM cleanup finishes before a replacement camera touches the reader', async () => {
+  const { context, element } = ui(), stopping = deferred(), instances = [];
+  class Scanner {
+    constructor() { this.id = instances.length + 1; instances.push(this); }
+    start() { element('reader').innerHTML = 'video-' + this.id; return Promise.resolve(); }
+    stop() { return stopping.promise.then(() => { element('reader').innerHTML = ''; }); }
+    clear() { element('reader').innerHTML = ''; }
+    static getCameras() { return Promise.resolve([{ id: 'synthetic-camera' }]); }
+  }
+  context.Html5Qrcode = Scanner;
+  context.startLiveScan();
+  await flush();
+  assert.equal(element('reader').innerHTML, 'video-1');
+  context.resetScan();
+  context.startLiveScan();
+  await flush();
+  assert.equal(instances.length, 1);
+  stopping.resolve();
+  await flush();
+  assert.equal(instances.length, 2);
+  assert.equal(element('reader').innerHTML, 'video-2');
+});
+test('a rejected canceled start releases the cleanup barrier for a camera retry', async () => {
+  const { context, element } = ui(), firstStart = deferred(), instances = [];
+  class Scanner {
+    constructor() { this.id = instances.length + 1; instances.push(this); }
+    start() { return this.id === 1 ? firstStart.promise : Promise.resolve(); }
+    stop() { throw new Error('not scanning'); }
+    clear() {}
+    static getCameras() { return Promise.resolve([{ id: 'synthetic-camera' }]); }
+  }
+  context.Html5Qrcode = Scanner;
+  context.startLiveScan();
+  await flush();
+  context.resetScan();
+  context.startLiveScan();
+  firstStart.reject(new Error('synthetic permission failure'));
+  await flush();
+  assert.equal(instances.length, 2);
+  assert.equal(context.liveScanner, instances[1]);
+  assert.equal(element('scan-result-wrap').innerHTML, '');
+  assert.equal(element('vf-hint').textContent, 'Point at the barcode…');
 });
 test('late barcode lookup cannot repopulate a canceled scan', () => {
   const { context, element, calls } = ui();

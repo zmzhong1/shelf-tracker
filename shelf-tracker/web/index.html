@@ -1034,6 +1034,7 @@ function toast(msg, action){
 var scanBusy=false;
 var liveScanner=null, scanHandled=false;
 var scanEpoch=0, scanPhotoUrl='';
+var liveStartPromise=null, scanCleanup=Promise.resolve();
 function scanUploadInput(){ return '<label class="btn ghost" style="flex:1;position:relative;overflow:hidden;cursor:pointer">Upload photo<input type="file" id="scanFile" accept="image/*" style="position:absolute;inset:0;opacity:0"></label>'; }
 function resetScan(){
   scanBusy=false; scanHandled=false; stopLiveScan();
@@ -1054,52 +1055,61 @@ function scanCamError(msg){
 }
 function startLiveScan(){
   if(typeof Html5Qrcode==='undefined'){ toast('Scanner not loaded'); return; }
-  stopLiveScan();
+  var cleanup=stopLiveScan();
   var epoch=scanEpoch, scanner;
   scanHandled=false;
   $('vf-guide').style.display='none'; $('vf-photo').style.display='none'; $('reader').style.display='block';
   $('vf-hint').textContent='Starting camera…';
   $('scan-dock').innerHTML='<button class="btn ghost full" id="scan-stop">Cancel</button>'; $('scan-stop').onclick=resetScan;
-  var fmts; try{ fmts=[Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,Html5QrcodeSupportedFormats.CODE_128]; }catch(e){}
-  try{ scanner=new Html5Qrcode('reader', fmts?{formatsToSupport:fmts}:undefined); liveScanner=scanner; }
-  catch(e){ scanCamError('init failed — '+((e&&e.message)||e)); return; }
   var cfg={fps:10, qrbox:{width:250,height:170}};
   function begin(cam){
     if(epoch!==scanEpoch || liveScanner!==scanner) return;
-    Promise.resolve().then(function(){
+    liveStartPromise=Promise.resolve().then(function(){
       if(epoch!==scanEpoch || liveScanner!==scanner) return;
       return scanner.start(cam, cfg, function(text){
         if(epoch===scanEpoch && liveScanner===scanner) onCode(text);
       }, function(){});
-    }).then(function(){
-      if(epoch!==scanEpoch || liveScanner!==scanner){ disposeLiveScanner(scanner); return; }
+    });
+    liveStartPromise.then(function(){
+      if(epoch!==scanEpoch || liveScanner!==scanner) return;
       $('vf-hint').textContent='Point at the barcode…';
     }).catch(function(e){
       if(epoch===scanEpoch && liveScanner===scanner) scanCamError((e&&e.message)||'camera blocked');
-      else disposeLiveScanner(scanner);
     });
   }
-  if(Html5Qrcode.getCameras){
-    Html5Qrcode.getCameras().then(function(cams){
-      if(!cams||!cams.length){ begin({facingMode:'environment'}); return; }
-      var back=cams.filter(function(c){ return /back|rear|environment/i.test(c.label||''); })[0];
-      begin((back||cams[cams.length-1]).id);
-    }).catch(function(e){ if(epoch===scanEpoch && liveScanner===scanner) scanCamError((e&&e.message)||'allow camera access'); });
-  } else {
+  // The library also removes shared DOM inside stop(), so a replacement must
+  // wait for the previous start and stop to settle before touching the reader.
+  cleanup.then(function(){
+    if(epoch!==scanEpoch) return;
+    var fmts; try{ fmts=[Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,Html5QrcodeSupportedFormats.CODE_128]; }catch(e){}
+    try{ scanner=new Html5Qrcode('reader', fmts?{formatsToSupport:fmts}:undefined); liveScanner=scanner; }
+    catch(e){ scanCamError('init failed — '+((e&&e.message)||e)); return; }
+    if(Html5Qrcode.getCameras){
+      return Html5Qrcode.getCameras().then(function(cams){
+        if(!cams||!cams.length){ begin({facingMode:'environment'}); return; }
+        var back=cams.filter(function(c){ return /back|rear|environment/i.test(c.label||''); })[0];
+        begin((back||cams[cams.length-1]).id);
+      });
+    }
     begin({facingMode:'environment'});
-  }
+  }).catch(function(e){ if(epoch===scanEpoch) scanCamError((e&&e.message)||'allow camera access'); });
 }
 function disposeLiveScanner(scanner){
   function clear(){
     if(liveScanner && liveScanner!==scanner) return;
     try{ scanner.clear(); }catch(e){}
   }
-  try{ Promise.resolve(scanner.stop()).then(clear, clear); }catch(e){ clear(); }
+  try{ return Promise.resolve(scanner.stop()).then(clear, clear); }catch(e){ clear(); return Promise.resolve(); }
 }
 function stopLiveScan(){
   scanEpoch++; scanBusy=false;
-  if(liveScanner){ var scanner=liveScanner; liveScanner=null; disposeLiveScanner(scanner); }
+  if(liveScanner){
+    var scanner=liveScanner, started=liveStartPromise;
+    liveScanner=null; liveStartPromise=null;
+    scanCleanup=Promise.resolve(started).catch(function(){}).then(function(){ return disposeLiveScanner(scanner); });
+  }
   if(scanPhotoUrl){ URL.revokeObjectURL(scanPhotoUrl); scanPhotoUrl=''; }
+  return scanCleanup;
 }
 function onCode(code){
   if(scanHandled) return; scanHandled=true;
@@ -1110,12 +1120,14 @@ function onCode(code){
 }
 async function onScanFile(e){
   var f=e.target.files[0]; if(!f || scanBusy) return;
-  stopLiveScan();
+  var cleanup=stopLiveScan();
   var epoch=scanEpoch;
   scanBusy=true;
   scanPhotoUrl=URL.createObjectURL(f);
   $('vf-photo').src=scanPhotoUrl; $('vf-photo').style.display='block'; $('vf-guide').style.display='none';
   $('scan-result-wrap').innerHTML='<div class="scan-result miss"><div class="spin"></div><div class="st"><b>Reading barcode…</b><span>decoding the photo</span></div></div>';
+  await cleanup;
+  if(epoch!==scanEpoch) return;
   var code='';
   try{
     if('BarcodeDetector' in window){

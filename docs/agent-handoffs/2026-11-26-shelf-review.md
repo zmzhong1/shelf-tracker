@@ -128,3 +128,7 @@ web-camera-restart-red.log
 ℹ pass 0
 ℹ fail 1
 ```
+
+Final camera follow-up serializes replacement construction behind previous start settlement and stop/clear completion. Exact upstream 2.3.8 source confirms stop itself mutates shared DOM: https://raw.githubusercontent.com/mebjas/html5-qrcode/v2.3.8/src/html5-qrcode.ts . Tests reproduce that internal mutation and rejected-start recovery. Web suite now 22/22 passed (118.530291 ms); prior serialization failure output is retained at `_work/review/web-stop-serialization-red.log`.
+
+During synchronization `git pull --rebase` attempted to replay the unpublished main merge; aborted it before edits, restored d5d3c24 clean, with no source loss or shared history rewrite. Publishing the coherent integration checkpoint before the final fetch/pull/merge avoids replaying that merge.
