@@ -78,9 +78,10 @@ function addItem(item) {
   return { row: row, count: sh.getLastRow() - 1 };
 }
 
-/** Bulk TSV import (rows of up to 15 tab-separated cols, no header line). */
+/** Bulk TSV import (rows of up to 16 tab-separated cols, no header line). */
 function bulkImport(tsv) {
-  const lines = String(tsv).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  // Do not trim the whole line: leading tabs represent empty columns.
+  const lines = String(tsv).split(/\r?\n/).filter(l => l.trim());
   if (!lines.length) return { added: 0 };
   const block = lines.map(l => {
     const c = l.split('\t').map(x => x.trim());
@@ -190,14 +191,28 @@ function sendExpiryDigest() {
   const now = new Date(), DAY = 864e5;
   const eff = it => {
     const ds = [];
-    if (it.exp) { const d = new Date(it.exp); if (!isNaN(d)) ds.push(d); }
-    if (it.opened && it.pao) { const d = new Date(it.opened); if (!isNaN(d)) { d.setMonth(d.getMonth() + Number(it.pao)); ds.push(d); } }
-    if (!ds.length && it.mfg) { const d = new Date(it.mfg); if (!isNaN(d)) { d.setMonth(d.getMonth() + 36); ds.push(d); } }
-    return ds.length ? new Date(Math.min.apply(null, ds)) : null;
+    if (it.exp) { const d = new Date(it.exp); if (!isNaN(d)) ds.push({ d: d, est: false }); }
+    const months = Number(it.pao);
+    if (it.opened && Number.isFinite(months) && months > 0) {
+      const d = new Date(it.opened);
+      if (!isNaN(d)) {
+        d.setMonth(d.getMonth() + months);
+        if (!isNaN(d)) ds.push({ d: d, est: false });
+      }
+    }
+    if (it.mfg) {
+      const d = new Date(it.mfg);
+      if (!isNaN(d)) {
+        d.setMonth(d.getMonth() + 36);
+        if (!isNaN(d)) ds.push({ d: d, est: true });
+      }
+    }
+    ds.sort((a, b) => a.d - b.d);
+    return ds[0] || { d: null, est: false };
   };
   const hot = boot.rows
     .filter(r => r.status !== 'retired')
-    .map(r => ({ r: r, d: eff(r) }))
+    .map(r => Object.assign({ r: r }, eff(r)))
     .filter(x => x.d && (x.d - now) / DAY <= 60)
     .sort((a, b) => a.d - b.d);
   if (!hot.length) return 'nothing expiring';
@@ -205,7 +220,7 @@ function sendExpiryDigest() {
   const body = hot.map(x => {
     const days = Math.floor((x.d - now) / DAY);
     const tag = days < 0 ? 'EXPIRED ' + fmt(x.d) : days + 'd left (' + fmt(x.d) + ')';
-    return '• ' + [x.r.b, x.r.p, x.r.sn, x.r.s].filter(String).join(' ') + ' — ' + tag;
+    return '• ' + [x.r.b, x.r.p, x.r.sn, x.r.s].filter(String).join(' ') + ' — ' + tag + (x.est ? ' (est.)' : '');
   }).join('\n');
   MailApp.sendEmail(Session.getEffectiveUser().getEmail(),
     'Shelf Tracker: ' + hot.length + ' item(s) expired or expiring soon', body);

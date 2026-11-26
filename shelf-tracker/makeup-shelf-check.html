@@ -266,9 +266,13 @@ function darken(hex,f){const n=parseInt(hex.slice(1),16);let r=(n>>16)&255,g=(n>
 const NOW = new Date(); const DAY = 864e5;
 function enrich(it,i){
   it.id=i;
-  let d=null, est=false;
-  if(it.exp){ const p=new Date(it.exp); if(!isNaN(p)) d=p; }
-  else if(it.mfg){ const m=new Date(it.mfg); if(!isNaN(m)){ d=new Date(m); d.setMonth(d.getMonth()+36); est=true; } }
+  const candidates=[];
+  if(it.exp){ const p=new Date(it.exp); if(!isNaN(p)) candidates.push({d:p,est:false}); }
+  const pao=Number(it.pao);
+  if(it.opened && isFinite(pao) && pao>0){ const o=new Date(it.opened); if(!isNaN(o)){ o.setMonth(o.getMonth()+pao); if(!isNaN(o)) candidates.push({d:o,est:false}); } }
+  if(it.mfg){ const m=new Date(it.mfg); if(!isNaN(m)){ m.setMonth(m.getMonth()+36); if(!isNaN(m)) candidates.push({d:m,est:true}); } }
+  candidates.sort((a,b)=>a.d-b.d);
+  const d=candidates.length?candidates[0].d:null, est=candidates.length?candidates[0].est:false;
   it.expDate=d; it.est=est;
   it.days = d ? Math.floor((d-NOW)/DAY) : null;
   it.status = d===null ? "none" : (it.days<0 ? "expired" : (it.days<=90 ? "soon" : "ok"));
